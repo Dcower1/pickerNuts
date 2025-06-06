@@ -1,12 +1,16 @@
 import tkinter as tk
 from tkinter import messagebox
+from controlador import utils
 
 class LoginView:
     def __init__(self, root, on_login_success):
         self.root = root
         self.on_login_success = on_login_success
         self.root.title("Inicio de sesión")
-        self.root.geometry("300x200")
+
+
+        utils.centrar_ventana(self.root, 300, 200)
+        
 
         tk.Label(root, text="Usuario").pack()
         self.entry_user = tk.Entry(root)

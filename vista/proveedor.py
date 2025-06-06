@@ -2,14 +2,15 @@ import tkinter as tk
 from tkinter import messagebox
 from modelo import bd
 from vista.interfaz import InterfazProveedorView
-
+from controlador import utils
 
 class ProveedorView:
     def __init__(self):
-        self.lista.bind("<Double-1>", self.abrir_interfaz_proveedor)
         self.root = tk.Tk()
         self.root.title("Gestión de Proveedores")
-        self.root.geometry("400x400")
+        #self.root.geometry("400x400")
+
+        utils.centrar_ventana(self.root, 400, 400)
 
         tk.Label(self.root, text="Nombre").pack()
         self.entry_nombre = tk.Entry(self.root)
@@ -28,7 +29,7 @@ class ProveedorView:
         self.lista = tk.Listbox(self.root, width=50)
         self.lista.pack(pady=10)
         self.actualizar_lista()
-
+        self.lista.bind("<Double-1>", self.abrir_interfaz_proveedor)
         self.root.mainloop()
 
     def registrar(self):

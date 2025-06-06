@@ -6,6 +6,8 @@ def conectar():
 def crear_tablas():
     conn = conectar()
     cursor = conn.cursor()
+
+    # Tabla de proveedores
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS proveedores (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -14,5 +16,17 @@ def crear_tablas():
             contacto TEXT
         )
     ''')
+
+    # ✅ Agrega esta tabla
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS clasificaciones (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            proveedor_id INTEGER,
+            clase TEXT,
+            fecha TEXT,
+            FOREIGN KEY(proveedor_id) REFERENCES proveedores(id)
+        )
+    ''')
+
     conn.commit()
     conn.close()
