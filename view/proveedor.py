@@ -1,8 +1,8 @@
 import tkinter as tk
 from tkinter import messagebox
-from modelo import bd
-from vista.interfaz import InterfazProveedorView
-from controlador import utils
+from models import bd
+from view.interfaz import InterfazProveedorView
+from components import utils
 
 class ProveedorView:
     def __init__(self):

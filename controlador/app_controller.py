@@ -1,5 +1,5 @@
-from vista import login, proveedor
-from modelo import bd
+from view import login, proveedor
+from models import bd
 import tkinter as tk
 
 def iniciar_app():

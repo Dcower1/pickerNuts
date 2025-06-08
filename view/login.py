@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import messagebox
-from controlador import utils
+from components import utils
 
 class LoginView:
     def __init__(self, root, on_login_success):

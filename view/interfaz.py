@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
-from controlador import utils
+from components import utils
 import sqlite3
 from datetime import datetime, timedelta
 import random

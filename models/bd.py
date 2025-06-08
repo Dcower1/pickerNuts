@@ -17,7 +17,7 @@ def crear_tablas():
         )
     ''')
 
-    # ✅ Agrega esta tabla
+    #  Tabla Trazabilidad
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS clasificaciones (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
