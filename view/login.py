@@ -2,6 +2,8 @@ import tkinter as tk
 from tkinter import messagebox
 from components import utils
 
+
+#funcion que muestra el login
 class LoginView:
     def __init__(self, root, on_login_success):
         self.root = root
