@@ -1,8 +1,7 @@
+import tkinter as tk
+import re # Importa el módulo re para operaciones con expresiones regulares.
 
-import tkinter as tk  
-import re
-
-def centrar_ventana(ventana, ancho, alto):
+def centrar_ventana(ventana, ancho, alto): # Centra una ventana de Tkinter en la pantalla.
     ventana.update_idletasks()
     pantalla_ancho = ventana.winfo_screenwidth()
     pantalla_alto = ventana.winfo_screenheight()
@@ -10,7 +9,7 @@ def centrar_ventana(ventana, ancho, alto):
     y = (pantalla_alto // 2) - (alto // 2)
     ventana.geometry(f"{ancho}x{alto}+{x}+{y}")
 
-def crear_boton_toggle(root, callback, estado_inicial=False):
+def crear_boton_toggle(root, callback, estado_inicial=False): # Crea un botón de alternancia (START/DETENER) que ejecuta un callback.
     estado = {'activo': estado_inicial}
 
     def alternar():
@@ -22,14 +21,14 @@ def crear_boton_toggle(root, callback, estado_inicial=False):
         callback(estado['activo'])
 
     boton = tk.Button(root, text="START", bg="green", fg="white",
-                      font=("Arial", 14, "bold"), width=10, height=2,
-                      command=alternar)
+                    font=("Arial", 14, "bold"), width=10, height=2,
+                    command=alternar)
     boton.estado = estado
     return boton
 
 
 
-def validar_rut(rut):
+def validar_rut(rut): # Valida el formato de un RUT chileno (sin puntos, con guión).
     """Valida formato RUT chileno simple (sin puntos, con guión)"""
     rut = rut.upper().replace(".", "").replace("-", "")
     if len(rut) < 2:
@@ -48,6 +47,6 @@ def validar_rut(rut):
     except:
         return False
 
-def validar_contacto(contacto):
+def validar_contacto(contacto): # Valida el formato de un número de contacto chileno (+569XXXXXXXX o 9XXXXXXXX).
     """Valida formato número chileno: +569XXXXXXXX o 9XXXXXXXX"""
     return bool(re.match(r"^(\+569\d{8}|9\d{8})$", contacto.strip()))

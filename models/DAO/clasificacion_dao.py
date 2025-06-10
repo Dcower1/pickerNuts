@@ -1,10 +1,10 @@
-import sqlite3
-from datetime import datetime, timedelta
-import random
+import sqlite3 # Importa el módulo sqlite3 para interactuar con la base de datos SQLite.
+from datetime import datetime, timedelta # Importa datetime y timedelta para trabajar con fechas y tiempos.
+import random # Importa el módulo random para generar números aleatorios.
 
-class ClasificacionDAO:
+class ClasificacionDAO: # Objeto de Acceso a Datos (DAO) para manejar las operaciones de la tabla 'clasificaciones'.
     @staticmethod
-    def obtener_metricas(proveedor_id):
+    def obtener_metricas(proveedor_id): # Obtiene y retorna un diccionario con métricas de clasificación para un proveedor específico.
         conn = sqlite3.connect("sistema_nueces.db")
         cursor = conn.cursor()
 
@@ -55,7 +55,7 @@ class ClasificacionDAO:
         }
 
     @staticmethod
-    def insertar_datos_simulados_si_no_existen(proveedor_id):
+    def insertar_datos_simulados_si_no_existen(proveedor_id): # Inserta datos de clasificación simulados para un proveedor si no tiene registros.
         conn = sqlite3.connect("sistema_nueces.db")
         cursor = conn.cursor()
         cursor.execute("SELECT COUNT(*) FROM clasificaciones WHERE proveedor_id = ?", (proveedor_id,))

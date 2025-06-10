@@ -1,16 +1,16 @@
-import tkinter as tk
-from tkinter import ttk
-from components import utils
-from datetime import datetime
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-import matplotlib.pyplot as plt
+import tkinter as tk # Importa la librería Tkinter para la creación de interfaces gráficas de usuario.
+from tkinter import ttk # Importa el módulo ttk de Tkinter para widgets temáticos.
+from components import utils # Importa el módulo utils para funciones de utilidad.
+from datetime import datetime # Importa la clase datetime para trabajar con fechas y horas.
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg # Importa FigureCanvasTkAgg para incrustar gráficos de Matplotlib.
+import matplotlib.pyplot as plt # Importa pyplot de Matplotlib para la creación de gráficos.
 
-from models.DAO.clasificacion_dao import ClasificacionDAO
-from models.DTO.proveedor_dto import ProveedorDTO
-from components.utils import crear_boton_toggle
+from models.DAO.clasificacion_dao import ClasificacionDAO # Importa la clase ClasificacionDAO.
+from models.DTO.proveedor_dto import ProveedorDTO # Importa la clase ProveedorDTO.
+from components.utils import crear_boton_toggle # Importa la función crear_boton_toggle.
 
-class InterfazProveedorView:
-    def __init__(self, proveedor_dto: ProveedorDTO):
+class InterfazProveedorView: # Representa la interfaz de usuario para la ficha de un proveedor.
+    def __init__(self, proveedor_dto: ProveedorDTO): # Inicializa la vista con un objeto ProveedorDTO.
         self.proveedor = proveedor_dto
         self.produccion_activa = False
 
@@ -64,11 +64,11 @@ class InterfazProveedorView:
         # Volver
         tk.Button(self.root, text="Volver", command=self.root.destroy).place(x=30, y=500)
 
-    def toggle_produccion(self, estado):
+    def toggle_produccion(self, estado): # Alterna el estado de producción y lo imprime en consola.
         self.produccion_activa = estado
         print(f"Producción {'iniciada' if estado else 'detenida'} para {self.proveedor.nombre}")
 
-    def graficar_torta(self, datos):
+    def graficar_torta(self, datos): # Crea y muestra un gráfico circular (pastel) de clasificaciones.
         valores = [datos['A'], datos['B'], datos['C']]
         clases = ['A', 'B', 'C']
 

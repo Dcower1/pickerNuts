@@ -1,15 +1,15 @@
-import tkinter as tk
-from tkinter import messagebox
-from models import bd
-from view.interfaz import InterfazProveedorView
-from components import utils
-from models.DAO.proveedor_dao import ProveedorDAO 
+import tkinter as tk # Importa la librería Tkinter para la creación de interfaces gráficas de usuario.
+from tkinter import messagebox # Importa el módulo messagebox de Tkinter para mostrar cuadros de diálogo.
+from models import bd # Importa el módulo bd para la base de datos.
+from view.interfaz import InterfazProveedorView # Importa la clase InterfazProveedorView.
+from components import utils # Importa el módulo utils para funciones de utilidad.
+from models.DAO.proveedor_dao import ProveedorDAO # Importa la clase ProveedorDAO.
 
-class ProveedorView:
-    def __init__(self):
+class ProveedorView: # Representa la interfaz de gestión de proveedores.
+    def __init__(self): # Inicializa la vista de gestión de proveedores.
         self.root = tk.Tk()
         self.root.title("Gestión de Proveedores")
-        #self.root.geometry("400x400")
+        #self.root.geometry("400x400") #Falata mas info
 
         utils.centrar_ventana(self.root, 400, 400)
 
@@ -29,11 +29,11 @@ class ProveedorView:
 
         self.lista = tk.Listbox(self.root, width=50)
         self.lista.pack(pady=10)
-        self.actualizar_lista()
-        self.lista.bind("<Double-1>", self.abrir_interfaz_proveedor)
+        self.actualizar_lista() # Actualiza la lista de proveedores al iniciar.
+        self.lista.bind("<Double-1>", self.abrir_interfaz_proveedor) # Asocia un evento de doble clic para abrir la interfaz del proveedor.
         self.root.mainloop()
 
-    def registrar(self):
+    def registrar(self): # Registra un nuevo proveedor en la base de datos, incluyendo validaciones.
         nombre = self.entry_nombre.get().strip()
         rut = self.entry_rut.get().strip()
         contacto = self.entry_contacto.get().strip()
@@ -80,7 +80,7 @@ class ProveedorView:
         except Exception as e:
             messagebox.showerror("Error", f"No se pudo registrar el proveedor.\n{e}")
 
-    def actualizar_lista(self):
+    def actualizar_lista(self): # Carga y muestra la lista actual de proveedores desde la base de datos.
         self.lista.delete(0, tk.END)
         conn = bd.conectar()
         cursor = conn.cursor()
@@ -89,7 +89,8 @@ class ProveedorView:
         for p in self.proveedores:
             self.lista.insert(tk.END, f"{p[1]} - RUT: {p[2]}")
         conn.close()
-    def abrir_interfaz_proveedor(self, event):
+        
+    def abrir_interfaz_proveedor(self, event): # Abre la interfaz de detalles para el proveedor seleccionado.
         seleccion = self.lista.curselection()
         if not seleccion:
             return

@@ -1,9 +1,9 @@
-import sqlite3
+import sqlite3 # Importa el módulo sqlite3 para trabajar con bases de datos SQLite.
 
-def conectar():
+def conectar(): # Establece y retorna una conexión a la base de datos "sistema_nueces.db".
     return sqlite3.connect("sistema_nueces.db")
 
-def crear_tablas():
+def crear_tablas(): # Crea las tablas 'proveedores' y 'clasificaciones' en la base de datos si no existen.
     conn = conectar()
     cursor = conn.cursor()
 

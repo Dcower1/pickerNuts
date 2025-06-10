@@ -1,7 +1,7 @@
-import sqlite3
-from models.DTO.proveedor_dto import ProveedorDTO
+import sqlite3 # Importa el módulo sqlite3 para interactuar con la base de datos SQLite.
+from models.DTO.proveedor_dto import ProveedorDTO # Importa la clase ProveedorDTO.
 
-class ProveedorDAO:
+class ProveedorDAO: # Objeto de Acceso a Datos (DAO) para manejar las operaciones de la tabla 'proveedores'.
     @staticmethod
     def obtener_por_id(proveedor_id):
         conn = sqlite3.connect("sistema_nueces.db")
@@ -14,7 +14,7 @@ class ProveedorDAO:
         return None
 
     @staticmethod
-    def obtener_todos():
+    def obtener_todos(): # Obtiene una lista de todos los objetos ProveedorDTO de la base de datos.
         conn = sqlite3.connect("sistema_nueces.db")
         cursor = conn.cursor()
         cursor.execute("SELECT id, nombre, rut, contacto FROM proveedores")
