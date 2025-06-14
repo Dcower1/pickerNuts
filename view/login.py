@@ -1,9 +1,11 @@
-import tkinter as tk # Importa la librería Tkinter para la creación de interfaces gráficas de usuario.
-from tkinter import messagebox # Importa el módulo messagebox de Tkinter para mostrar cuadros de diálogo.
-from components import utils # Importa el módulo utils para funciones de utilidad.
+import tkinter as tk
+from tkinter import messagebox
+from components import utils
+import hashlib
+import sqlite3
 
-class LoginView: # Representa la interfaz de inicio de sesión.
-    def __init__(self, root, on_login_success): # Inicializa la vista de login.
+class LoginView:
+    def __init__(self, root, on_login_success):
         self.root = root
         self.on_login_success = on_login_success
         self.root.title("Inicio de sesión")
@@ -20,12 +22,25 @@ class LoginView: # Representa la interfaz de inicio de sesión.
 
         tk.Button(root, text="Iniciar sesión", command=self.login).pack(pady=10)
 
-    def login(self): # Maneja la lógica de inicio de sesión, validando credenciales.
+    def login(self):
         usuario = self.entry_user.get()
         clave = self.entry_pass.get()
+        password_hash = hashlib.sha256(clave.encode()).hexdigest()
 
-        if usuario == "admin" and clave == "1234":
-            self.root.destroy()
-            self.on_login_success()
-        else:
-            messagebox.showerror("Error", "Credenciales incorrectas")
+        try:
+            conn = sqlite3.connect("sistema_nueces.db")
+            cursor = conn.cursor()
+
+            cursor.execute("SELECT * FROM superusuarios WHERE nombre = ? AND contrasena_hash = ?", (usuario, password_hash))
+            row = cursor.fetchone()
+            conn.close()
+
+            if row:
+                rol = row[3]  # extrae el rol de la fila
+                self.on_login_success(rol)
+
+            else:
+                messagebox.showerror("Error", "Credenciales incorrectas")
+
+        except sqlite3.Error as e:
+            messagebox.showerror("Error de base de datos", f"Error al conectar con base de datos: {e}")

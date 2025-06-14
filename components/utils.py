@@ -50,3 +50,23 @@ def validar_rut(rut): # Valida el formato de un RUT chileno (sin puntos, con gui
 def validar_contacto(contacto): # Valida el formato de un número de contacto chileno (+569XXXXXXXX o 9XXXXXXXX).
     """Valida formato número chileno: +569XXXXXXXX o 9XXXXXXXX"""
     return bool(re.match(r"^(\+569\d{8}|9\d{8})$", contacto.strip()))
+
+
+def filtrar_proveedores(lista_proveedores, termino):
+    """
+    Filtra una lista de proveedores por ID, nombre, RUT o contacto.
+    :param lista_proveedores: lista de objetos DTO de proveedores
+    :param termino: string de búsqueda
+    :return: lista filtrada de proveedores
+    """
+    termino = termino.lower()
+    resultado = []
+
+    for p in lista_proveedores:
+        if (termino in str(p.id).lower() or
+            termino in p.nombre.lower() or
+            termino in p.rut.lower() or
+            termino in p.contacto.lower()):
+            resultado.append(p)
+
+    return resultado
