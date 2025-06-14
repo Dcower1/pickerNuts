@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
-from view.interfaz import InterfazProveedorView
+from view.usuario_views.interfaz import InterfazProveedorView
 from components import utils
 from models.DAO.proveedor_dao import ProveedorDAO
 
