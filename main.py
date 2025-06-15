@@ -8,17 +8,18 @@ def iniciar_app():
     crear_tablas()
     root = tk.Tk()
 
-    def on_login_success(rol, usuario_activo=None):
+    def on_login_success(usuario_activo):
         # Cuando login es exitoso, cerramos la ventana login
         root.destroy()
         # Creamos la ventana principal según el rol
         nuevo_root = tk.Tk()
-        if rol == 1:
+        if usuario_activo.es_admin:
            
-            admin_proveedor.BaseProveedorView(nuevo_root, "Gestión de Proveedores", usuario_activo=usuario_activo)
+            admin_proveedor.admin_ProveedorView(nuevo_root, usuario_activo=usuario_activo)
+           
 
         else:
-            proveedor.ProveedorView(nuevo_root, usuario_activo=usuario_activo)
+             proveedor.ProveedorView(nuevo_root, usuario_activo=usuario_activo)
         # Ejecutamos el loop de la ventana principal
         nuevo_root.mainloop()
 

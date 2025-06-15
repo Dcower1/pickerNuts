@@ -1,12 +1,11 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
-from view.usuario_views.interfaz import InterfazProveedorView
 from components import utils
 from models.DAO.proveedor_dao import ProveedorDAO
 
 class BaseProveedorView:
     def __init__(self, root, titulo, usuario_activo=None):
-        self.root = root  # Usar la ventana que te pasan, no crear otra
+        self.root = root
         self.root.title(titulo)
         utils.centrar_ventana(self.root, 950, 550)
         self.root.geometry("950x550")
@@ -58,7 +57,7 @@ class BaseProveedorView:
         search_entry.bind("<KeyRelease>", lambda event: self.buscar_proveedor())
         ttk.Button(search_frame, text="🔍 Buscar", command=self.buscar_proveedor).pack(side=tk.LEFT)
 
-        # Tabla
+        # Desde aqui empieza la tabla que muestran a los proveedores que se registran
         lista_frame = ttk.LabelFrame(right_frame, text="Lista de Proveedores", padding=10)
         lista_frame.pack(fill=tk.BOTH, expand=True)
 
@@ -71,15 +70,15 @@ class BaseProveedorView:
         self.tree.column("Contacto", width=120)
         self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
-        self.tree.bind("<Double-1>", self.abrir_interfaz_proveedor)
-
         scrollbar = ttk.Scrollbar(lista_frame, orient="vertical", command=self.tree.yview)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         self.tree.configure(yscrollcommand=scrollbar.set)
+        self.tree.bind("<Double-1>", self.abrir_interfaz_proveedor)
 
         self.actualizar_lista()
         self.root.mainloop()
 
+    #Funcion para realizar el registro ademas de las validaciones 
     def registrar(self):
         nombre = self.entry_nombre.get().strip()
         rut = self.entry_rut.get().strip()
@@ -114,32 +113,64 @@ class BaseProveedorView:
         else:
             messagebox.showerror("Error", "No se pudo registrar.")
 
+
+    #Funcion importante para la correcta visualizacion de la lista en la tabla de proveedores
+    #segun el tipo de usuario muestra tablas distintas, si es admin te mostrara todos los proveedores activos como inactivos,
+    #en cambio si es rol usuario la tabla solo muestra a los proveedores activos.
     def actualizar_lista(self):
         self.tree.delete(*self.tree.get_children())
         proveedores = ProveedorDAO.obtener_todos()
+        
+        print([(p.id, p.nombre, p.estado) for p in proveedores])  # <-- línea útil
+
+        if self.usuario_activo is None or not self.usuario_activo.es_admin:
+            proveedores = [p for p in proveedores if p.estado != 2]
+        
         for p in proveedores:
             self.tree.insert("", tk.END, values=(p.id, p.nombre, p.rut, p.contacto))
+
+
 
     def buscar_proveedor(self):
         filtro = self.search_var.get().lower()
         proveedores = ProveedorDAO.obtener_todos()
+        
+        # Mismo filtro para ocultar proveedores con estado 2 a usuarios no admin
+        if self.usuario_activo is None or not self.usuario_activo.es_admin:
+            proveedores = [p for p in proveedores if p.estado != 2]
+
         resultados = utils.filtrar_proveedores(proveedores, filtro)
         self.tree.delete(*self.tree.get_children())
         for p in resultados:
             self.tree.insert("", tk.END, values=(p.id, p.nombre, p.rut, p.contacto))
 
     def abrir_interfaz_proveedor(self, event):
-        seleccionado = self.tree.selection()
-        if seleccionado:
-            item = self.tree.item(seleccionado[0])
-            proveedor_id = item["values"][0]
-            proveedor = ProveedorDAO.obtener_por_id(proveedor_id)
-            if proveedor:
-                InterfazProveedorView(proveedor)
+        raise NotImplementedError("Este método debe ser implementado por la subclase.")
 
     def cerrar_sesion(self):
-        self.root.destroy()
-        messagebox.showinfo("Sesión cerrada", "Has cerrado sesión.")
+        self.root.destroy()  # Cierra la ventana actual
+
+        # Crea una nueva ventana para el login
+        import tkinter as tk
+        from view.login import LoginView  # Ajusta el import según tu estructura
+
+        login_root = tk.Tk()
+        
+        # Definir la función que se ejecuta al hacer login correctamente
+        def on_login_success(rol, usuario_activo=None):
+            login_root.destroy()
+            nuevo_root = tk.Tk()
+            if rol == 1:
+                from view.admin_views import admin_proveedor
+                admin_proveedor.admin_ProveedorView(nuevo_root, usuario_activo=usuario_activo)
+            else:
+                from view.usuario_views import proveedor
+                proveedor.ProveedorView(nuevo_root, usuario_activo=usuario_activo)
+            nuevo_root.mainloop()
+
+        LoginView(login_root, on_login_success)
+        login_root.mainloop()
+
 
     def configurar(self):
         messagebox.showinfo("Configuración", "Aquí abrirías las configuraciones del sistema.")

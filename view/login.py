@@ -3,6 +3,7 @@ from tkinter import messagebox
 from components import utils
 import hashlib
 import sqlite3
+from models.DTO.usuario_dto import Usuario
 
 class LoginView:
     def __init__(self, root, on_login_success):
@@ -36,8 +37,12 @@ class LoginView:
             conn.close()
 
             if row:
-                rol = row[3]  # extrae el rol de la fila
-                self.on_login_success(rol)
+                id_usuario = row[0]
+                nombre = row[1]
+                rol = row[3]
+
+                usuario_obj = Usuario(id_usuario, nombre, rol)
+                self.on_login_success(usuario_obj)  # <-- ahora se pasa el objeto Usuario
 
             else:
                 messagebox.showerror("Error", "Credenciales incorrectas")

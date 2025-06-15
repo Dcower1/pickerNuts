@@ -1,12 +1,12 @@
 import hashlib
-import sqlite3 # Importa el módulo sqlite3 para trabajar con bases de datos SQLite.
+import sqlite3 
 
 
 def conectar():
     return sqlite3.connect("sistema_nueces.db")
 
 
-def crear_tablas(): # Crea las tablas 'proveedores' y 'clasificaciones' en la base de datos si no existen.
+def crear_tablas(): 
     conn = conectar()
     cursor = conn.cursor()
 
@@ -33,7 +33,7 @@ def crear_tablas(): # Crea las tablas 'proveedores' y 'clasificaciones' en la ba
 
     # Tabla Clasificación / Trazabilidad
     cursor.execute('''
-        CREATE TABLE IF NOT EXISTS clasificacion (
+        CREATE TABLE IF NOT EXISTS clasificaciones (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             proveedor_id INTEGER NOT NULL,
             total REAL NOT NULL,
@@ -58,14 +58,17 @@ def crear_tablas(): # Crea las tablas 'proveedores' y 'clasificaciones' en la ba
     conn.commit()
     conn.close()
 
-    # 🔁 Insertar el admin por defecto DESPUÉS de crear la tabla
-    insertar_admin_por_defecto()
+    
+    insertar_admin()
+    insertar_usuario()
 
-def insertar_admin_por_defecto():
+
+#Funciones para insertar el usuario y el admin, la contraseña esta hasheada 
+def insertar_admin():
     conn = conectar()
     cursor = conn.cursor()
 
-    nombre = "admintrador"
+    nombre = "admin"
     password = "qwerty"
     password_hash = hashlib.sha256(password.encode()).hexdigest()
 
@@ -78,6 +81,27 @@ def insertar_admin_por_defecto():
         print("✅ Administrador insertado correctamente.")
     else:
         print("ℹ️ El administrador ya existe en la base de datos.")
+
+    conn.commit()
+    conn.close()
+
+def insertar_usuario():
+    conn = conectar()
+    cursor = conn.cursor()
+
+    nombre = "usuario"
+    password = "qwerty"
+    password_hash = hashlib.sha256(password.encode()).hexdigest()
+
+    cursor.execute("SELECT COUNT(*) FROM superusuarios WHERE nombre = ?", (nombre,))
+    existe = cursor.fetchone()[0]
+
+    if not existe:
+        cursor.execute("INSERT INTO superusuarios (nombre, contrasena_hash, rol) VALUES (?, ?, ?)",
+                       (nombre, password_hash, 2))  # 2 para usuario
+        print("✅ Usuario insertado correctamente.")
+    else:
+        print("ℹ️ El Usuario ya existe en la base de datos.")
 
     conn.commit()
     conn.close()

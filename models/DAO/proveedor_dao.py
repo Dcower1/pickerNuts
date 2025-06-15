@@ -1,5 +1,5 @@
 from db.setup_db import conectar
-from models.DTO.proveedor_dto import ProveedorDTO # Importa la clase ProveedorDTO.
+from models.DTO.proveedor_dto import ProveedorDTO  # Importa la clase ProveedorDTO.
 
 class ProveedorDAO:
     @staticmethod
@@ -35,6 +35,23 @@ class ProveedorDAO:
             return True
         except Exception as e:
             print(f"[ERROR] Insertar proveedor: {e}")
+            return False
+        finally:
+            conn.close()
+
+    @staticmethod
+    def actualizar(proveedor_id, nombre, rut, contacto):
+        try:
+            conn = conectar()
+            cursor = conn.cursor()
+            cursor.execute(
+                "UPDATE proveedores SET nombre = ?, rut = ?, contacto = ? WHERE id = ?",
+                (nombre, rut, contacto, proveedor_id)
+            )
+            conn.commit()
+            return True
+        except Exception as e:
+            print(f"[ERROR] Actualizar proveedor: {e}")
             return False
         finally:
             conn.close()
