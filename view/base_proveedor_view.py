@@ -1,107 +1,165 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
+from PIL import Image, ImageTk
+import os
 from components import utils
 from models.DAO.proveedor_dao import ProveedorDAO
-from components.utils import obtener_colores
 
+from components.utils import colores_wit
+
+
+img_path = os.path.join("components", "img", "banner_Nuts.png")
 
 
 class BaseProveedorView:
-    def __init__(self, root, titulo, usuario_activo=None):
+    def __init__(self, root, titulo="Proveedores - Diseño Mockup", usuario_activo=None):
         self.root = root
+        self.usuario_activo = usuario_activo
         self.root.title(titulo)
         utils.centrar_ventana(self.root, 950, 550)
-        self.root.geometry("950x550")
-        #self.root.configure(bg="white")
+        #self.root.geometry("950x550")
+        self.root.configure(bg="#FBE9D0")
         self.root.resizable(False, False)
-    # Colores
-        colores = obtener_colores()
-        bg_color = colores["bg_color"]
-        btn_color = colores["btn_color"]
-        text_color = colores["text_color"]
+        #colores 
+        self.colores = colores_wit()
 
-        self.root.configure(bg=bg_color)
-        self.usuario_activo = usuario_activo
+        self.crear_widgets()
 
-                # Estilos personalizados para ttk
-        style = ttk.Style()
-        style.theme_use('default')
-
-        # Fondo para ttk widgets
-        style.configure("TFrame", background=bg_color)
-        style.configure("TLabel", background=bg_color, foreground=text_color)
-        style.configure("TLabelFrame", background=bg_color, foreground=text_color)
-        style.configure("TButton", background=btn_color, foreground="white")
-        style.map("TButton",
-                  background=[("active", text_color)],
-                  foreground=[("active", "white")])
-
-
-        # Título y botones superiores
-        top_frame = ttk.Frame(self.root)
+    def crear_widgets(self):
+        # Top frame
+        top_frame = tk.Frame(self.root, bg=self.colores["fondo"])
         top_frame.pack(fill=tk.X, padx=10, pady=5)
 
-        ttk.Label(top_frame, text=titulo, font=("Segoe UI", 18, "bold")).pack(side=tk.LEFT)
-        ttk.Button(top_frame, text="⚙ Configurar", command=self.configurar).pack(side=tk.RIGHT, padx=5)
-        ttk.Button(top_frame, text="⏻ Cerrar sesión", command=self.cerrar_sesion).pack(side=tk.RIGHT)
+        btn_config = tk.Button(top_frame, text="⚙ Configuración", bg=self.colores["boton"],
+                               fg=self.colores["boton_texto"], font=("Segoe UI", 9, "bold"),
+                               command=self.configurar)
+        btn_config.pack(side=tk.RIGHT, padx=5)
 
-        # Contenedor principal
-        main_frame = ttk.Frame(self.root, padding=10)
-        main_frame.pack(fill=tk.BOTH, expand=True)
+        btn_logout = tk.Button(top_frame, text="⏻ Cerrar Sesión", bg=self.colores["boton"],
+                               fg=self.colores["boton_texto"], font=("Segoe UI", 9, "bold"),
+                               command=self.cerrar_sesion)
+        btn_logout.pack(side=tk.RIGHT)
 
-        # Frame izquierdo - Formulario
-        form_frame = ttk.LabelFrame(main_frame, text="Formulario de Proveedor", padding=15)
-        form_frame.grid(row=0, column=0, sticky="n", padx=10)
+        # Main frame
+        main_frame = tk.Frame(self.root, bg=self.colores["fondo"])
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+        main_frame.grid_columnconfigure(0, weight=3)
+        main_frame.grid_columnconfigure(1, weight=2)
+        main_frame.grid_rowconfigure(0, weight=1)
 
-        ttk.Label(form_frame, text="Nombre:").grid(row=0, column=0, sticky="w")
-        self.entry_nombre = ttk.Entry(form_frame, width=30)
-        self.entry_nombre.grid(row=0, column=1, pady=5)
+         # Define colores para filas intercaladas en una lista
+        colores_filas = ["#F2DBBB", "#E8C191", "#F2DABD"]
+        # Formulario izquierdo
+        form_frame = tk.LabelFrame(main_frame, text="Formulario Proveedores", bg=self.colores["form_bg"],
+                                   fg=self.colores["texto"], font=("Segoe UI", 10, "bold"), padx=10, pady=10)
+        form_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 10), pady=5)
+        form_frame.grid_columnconfigure(1, weight=1)
 
-        ttk.Label(form_frame, text="RUT:").grid(row=1, column=0, sticky="w")
-        self.entry_rut = ttk.Entry(form_frame, width=30)
-        self.entry_rut.grid(row=1, column=1, pady=5)
+        etiquetas = ["Nombre", "Rut", "Contacto"]
+        self.entries = {}
+        for i, label in enumerate(etiquetas):
+            tk.Label(form_frame, text=label, bg=self.colores["form_bg"]).grid(row=i, column=0, sticky="w", pady=5)
+            entry = tk.Entry(form_frame)
+            entry.grid(row=i, column=1, sticky="ew", pady=5)
+            self.entries[label.lower()] = entry
 
-        ttk.Label(form_frame, text="Contacto:").grid(row=2, column=0, sticky="w")
-        self.entry_contacto = ttk.Entry(form_frame, width=30)
-        self.entry_contacto.grid(row=2, column=1, pady=5)
+        self.entry_nombre = self.entries["nombre"]
+        self.entry_rut = self.entries["rut"]
+        self.entry_contacto = self.entries["contacto"]
 
-        ttk.Button(form_frame, text="Registrar Proveedor", command=self.registrar).grid(row=3, column=0, columnspan=2, pady=10)
+        btn_registrar = tk.Button(form_frame, text="Registrar proveedor", bg=self.colores["boton"],
+                                  fg=self.colores["boton_texto"], font=("Segoe UI", 9, "bold"),
+                                  command=self.registrar)
+        btn_registrar.grid(row=3, column=0, columnspan=2, pady=15, sticky="ew")
 
-        # Frame derecho - Búsqueda + Lista
-        right_frame = ttk.Frame(main_frame)
+        # Panel derecho
+        right_frame = tk.Frame(main_frame, bg=self.colores["fondo"])
         right_frame.grid(row=0, column=1, sticky="nsew")
+        right_frame.grid_rowconfigure(1, weight=0)
+        right_frame.grid_rowconfigure(2, weight=1)
+        right_frame.grid_columnconfigure(0, weight=1)
 
-        search_frame = ttk.Frame(right_frame)
-        search_frame.pack(fill=tk.X, pady=5)
+        # Banner
+        if os.path.isfile(img_path):
+            try:
+                original_img = Image.open(img_path)
+                resized = original_img.resize((600, 130), Image.Resampling.LANCZOS)
+                banner_img = ImageTk.PhotoImage(resized)
+                label_img = tk.Label(right_frame, image=banner_img, bg=self.colores["fondo"])
+                label_img.image = banner_img
+                label_img.grid(row=0, column=0, pady=(0, 10), sticky="n")
+            except Exception as e:
+                print("Error cargando banner:", e)
+
+        # Buscador
+
+    # Buscador
+        buscador_frame = tk.Frame(right_frame, bg=self.colores["form_bg"], width=600, height=30)
+        buscador_frame.grid(row=1, column=0, pady=(0, 10))
+        buscador_frame.grid_propagate(False)  # Fijar tamaño
 
         self.search_var = tk.StringVar()
-        search_entry = ttk.Entry(search_frame, textvariable=self.search_var, width=40)
-        search_entry.pack(side=tk.LEFT, padx=5)
-        search_entry.bind("<KeyRelease>", lambda event: self.buscar_proveedor())
-        ttk.Button(search_frame, text="🔍 Buscar", command=self.buscar_proveedor).pack(side=tk.LEFT)
+        entry_buscar = tk.Entry(
+            buscador_frame,
+            font=("Segoe UI", 10),
+            width=50,
+            textvariable=self.search_var,
+            fg="gray"
+        )
+        entry_buscar.insert(0, "Buscar...")  # Texto tipo placeholder
+        entry_buscar.pack(side=tk.LEFT, padx=10, pady=5, fill=tk.X, expand=True)
 
-        # Desde aqui empieza la tabla que muestran a los proveedores que se registran
-        lista_frame = ttk.LabelFrame(right_frame, text="Lista de Proveedores", padding=10)
-        lista_frame.pack(fill=tk.BOTH, expand=True)
+        # Comportamiento placeholder
+        def on_entry_click(event):
+            if entry_buscar.get() == "Buscar...":
+                entry_buscar.delete(0, tk.END)
+                entry_buscar.config(fg="black")
 
-        self.tree = ttk.Treeview(lista_frame, columns=("ID", "Nombre", "RUT", "Contacto"), show="headings", height=15)
-        for col in ("ID", "Nombre", "RUT", "Contacto"):
+        def on_focus_out(event):
+            if entry_buscar.get() == "":
+                entry_buscar.insert(0, "Buscar...")
+                entry_buscar.config(fg="gray")
+
+        entry_buscar.bind("<FocusIn>", on_entry_click)
+        entry_buscar.bind("<FocusOut>", on_focus_out)
+        entry_buscar.bind("<KeyRelease>", lambda event: self.buscar_proveedor())
+
+        # Tabla
+        tabla_frame = tk.LabelFrame(right_frame, text="Lista de Proveedores", bg=self.colores["form_bg"],
+                                    fg=self.colores["texto"], font=("Segoe UI", 10, "bold"), padx=5, pady=5)
+        tabla_frame.grid(row=2, column=0, sticky="nsew", padx=5, pady=5)
+
+        cols = ("ID", "Nombre del Proveedor", "RUT", "Contacto")
+        self.tree = ttk.Treeview(tabla_frame, columns=cols, show="headings")
+
+        for col in cols:
             self.tree.heading(col, text=col)
-        self.tree.column("ID", width=50)
-        self.tree.column("Nombre", width=150)
-        self.tree.column("RUT", width=120)
-        self.tree.column("Contacto", width=120)
-        self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+            self.tree.column(col, anchor=tk.CENTER, width=120)
 
-        scrollbar = ttk.Scrollbar(lista_frame, orient="vertical", command=self.tree.yview)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        self.tree.configure(yscrollcommand=scrollbar.set)
-        self.tree.bind("<Double-1>", self.abrir_interfaz_proveedor)
+        style = ttk.Style()
+        style.theme_use("clam")
 
+        style.configure("Treeview",
+                        background=self.colores["tabla_fila"],
+                        foreground=self.colores["texto"],
+                        fieldbackground=self.colores["tabla_fila"],
+                        rowheight=30,
+                        font=("Segoe UI", 9))
+        style.map("Treeview",
+                  background=[('selected', self.colores["tabla_seleccion"])],
+                  foreground=[('selected', self.colores["texto_seleccion"])])
+
+        style.configure("Treeview.Heading",
+                        background=self.colores["tabla_header"],
+                        foreground="white",
+                        font=("Segoe UI", 9, "bold"))
+
+        # Configura los tags con un ciclo para mayor flexibilidad
+        for i, color in enumerate(colores_filas, start=1):
+            self.tree.tag_configure(f"color{i}", background=color)
+
+        self.tree.pack(fill=tk.BOTH, expand=True)
         self.actualizar_lista()
-        self.root.mainloop()
-
-    #Funcion para realizar el registro ademas de las validaciones 
     def registrar(self):
         nombre = self.entry_nombre.get().strip()
         rut = self.entry_rut.get().strip()
@@ -136,54 +194,50 @@ class BaseProveedorView:
         else:
             messagebox.showerror("Error", "No se pudo registrar.")
 
-
-    #Funcion importante para la correcta visualizacion de la lista en la tabla de proveedores
-    #segun el tipo de usuario muestra tablas distintas, si es admin te mostrara todos los proveedores activos como inactivos,
-    #en cambio si es rol usuario la tabla solo muestra a los proveedores activos.
     def actualizar_lista(self):
         self.tree.delete(*self.tree.get_children())
         proveedores = ProveedorDAO.obtener_todos()
-        
-        print([(p.id, p.nombre, p.estado) for p in proveedores])  # <-- línea útil
 
         if self.usuario_activo is None or not self.usuario_activo.es_admin:
             proveedores = [p for p in proveedores if p.estado != 2]
-        
-        for p in proveedores:
-            self.tree.insert("", tk.END, values=(p.id, p.nombre, p.rut, p.contacto))
 
+        tags = [f"color{i}" for i in range(1, 4)]  # ["color1", "color2", "color3"]
+
+        for i, p in enumerate(proveedores):
+            tag = tags[i % len(tags)]
+            self.tree.insert("", tk.END, values=(p.id, p.nombre, p.rut, p.contacto), tags=(tag,))
 
 
     def buscar_proveedor(self):
         filtro = self.search_var.get().lower()
         proveedores = ProveedorDAO.obtener_todos()
-        
-        # Mismo filtro para ocultar proveedores con estado 2 a usuarios no admin
+
         if self.usuario_activo is None or not self.usuario_activo.es_admin:
             proveedores = [p for p in proveedores if p.estado != 2]
 
         resultados = utils.filtrar_proveedores(proveedores, filtro)
         self.tree.delete(*self.tree.get_children())
-        for p in resultados:
-            self.tree.insert("", tk.END, values=(p.id, p.nombre, p.rut, p.contacto))
+
+        tags = [f"color{i}" for i in range(1, 4)]  # Usa mismos colores que en actualizar_lista
+
+        for i, p in enumerate(resultados):
+            tag = tags[i % len(tags)]
+            self.tree.insert("", tk.END, values=(p.id, p.nombre, p.rut, p.contacto), tags=(tag,))
 
     def abrir_interfaz_proveedor(self, event):
         raise NotImplementedError("Este método debe ser implementado por la subclase.")
 
     def cerrar_sesion(self):
-        self.root.destroy()  
+        self.root.destroy()
 
-        # Crea una nueva ventana para el login
         import tkinter as tk
-        from view.login import LoginView  # Ajusta el import según tu estructura
+        from view.login import LoginView  # Ajustar ruta según estructura
 
         login_root = tk.Tk()
-        
-        # Definir la función que se ejecuta al hacer login correctamente
-        def on_login_success(usuario_obj):  # <- recibe objeto Usuario
+
+        def on_login_success(usuario_obj):
             login_root.destroy()
             nuevo_root = tk.Tk()
-
             if usuario_obj.rol == 1:
                 from view.admin_views import admin_proveedor
                 admin_proveedor.admin_ProveedorView(nuevo_root, usuario_activo=usuario_obj)
@@ -194,7 +248,6 @@ class BaseProveedorView:
 
         LoginView(login_root, on_login_success)
         login_root.mainloop()
-
 
     def configurar(self):
         messagebox.showinfo("Configuración", "Aquí abrirías las configuraciones del sistema.")

@@ -79,3 +79,16 @@ def obtener_colores():
         "entry_bg": "#FFFFFF",
         "entry_fg": "#131010"
     }
+
+def colores_wit():
+    return {
+        "fondo": "#FBE9D0",
+        "form_bg": "#E8C192",
+        "boton": "#8A4B25",
+        "boton_texto": "#FFFFFF",
+        "tabla_header": "#A26C34",
+        "tabla_fila": "#E8C191",
+        "texto": "#27160A",
+        "tabla_seleccion": "#D6A86D",
+        "texto_seleccion": "#000000",
+    }
