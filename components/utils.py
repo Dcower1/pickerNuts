@@ -70,3 +70,12 @@ def filtrar_proveedores(lista_proveedores, termino):
             resultado.append(p)
 
     return resultado
+
+def obtener_colores():
+    return {
+        "bg_color": "#FFF0DC",
+        "btn_color": "#F0BB78",
+        "text_color": "#543A14",
+        "entry_bg": "#FFFFFF",
+        "entry_fg": "#131010"
+    }

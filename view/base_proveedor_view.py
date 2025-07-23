@@ -2,6 +2,9 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from components import utils
 from models.DAO.proveedor_dao import ProveedorDAO
+from components.utils import obtener_colores
+
+
 
 class BaseProveedorView:
     def __init__(self, root, titulo, usuario_activo=None):
@@ -9,10 +12,30 @@ class BaseProveedorView:
         self.root.title(titulo)
         utils.centrar_ventana(self.root, 950, 550)
         self.root.geometry("950x550")
-        self.root.configure(bg="white")
+        #self.root.configure(bg="white")
         self.root.resizable(False, False)
+    # Colores
+        colores = obtener_colores()
+        bg_color = colores["bg_color"]
+        btn_color = colores["btn_color"]
+        text_color = colores["text_color"]
 
+        self.root.configure(bg=bg_color)
         self.usuario_activo = usuario_activo
+
+                # Estilos personalizados para ttk
+        style = ttk.Style()
+        style.theme_use('default')
+
+        # Fondo para ttk widgets
+        style.configure("TFrame", background=bg_color)
+        style.configure("TLabel", background=bg_color, foreground=text_color)
+        style.configure("TLabelFrame", background=bg_color, foreground=text_color)
+        style.configure("TButton", background=btn_color, foreground="white")
+        style.map("TButton",
+                  background=[("active", text_color)],
+                  foreground=[("active", "white")])
+
 
         # Título y botones superiores
         top_frame = ttk.Frame(self.root)
@@ -148,7 +171,7 @@ class BaseProveedorView:
         raise NotImplementedError("Este método debe ser implementado por la subclase.")
 
     def cerrar_sesion(self):
-        self.root.destroy()  # Cierra la ventana actual
+        self.root.destroy()  
 
         # Crea una nueva ventana para el login
         import tkinter as tk
@@ -157,15 +180,16 @@ class BaseProveedorView:
         login_root = tk.Tk()
         
         # Definir la función que se ejecuta al hacer login correctamente
-        def on_login_success(rol, usuario_activo=None):
+        def on_login_success(usuario_obj):  # <- recibe objeto Usuario
             login_root.destroy()
             nuevo_root = tk.Tk()
-            if rol == 1:
+
+            if usuario_obj.rol == 1:
                 from view.admin_views import admin_proveedor
-                admin_proveedor.admin_ProveedorView(nuevo_root, usuario_activo=usuario_activo)
+                admin_proveedor.admin_ProveedorView(nuevo_root, usuario_activo=usuario_obj)
             else:
                 from view.usuario_views import proveedor
-                proveedor.ProveedorView(nuevo_root, usuario_activo=usuario_activo)
+                proveedor.ProveedorView(nuevo_root, usuario_activo=usuario_obj)
             nuevo_root.mainloop()
 
         LoginView(login_root, on_login_success)

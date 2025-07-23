@@ -3,25 +3,50 @@ from tkinter import messagebox
 from components import utils
 import hashlib
 import sqlite3
+from components.utils import obtener_colores
 from models.DTO.usuario_dto import Usuario
 
 class LoginView:
     def __init__(self, root, on_login_success):
-        self.root = root
-        self.on_login_success = on_login_success
-        self.root.title("Inicio de sesión")
+            self.root = root
+            self.on_login_success = on_login_success
+            self.root.title("Inicio de sesión")
 
-        utils.centrar_ventana(self.root, 300, 200)
+            # Obtener colores
+            colores = obtener_colores()
+            bg_color = colores["bg_color"]
+            btn_color = colores["btn_color"]
+            text_color = colores["text_color"]
+            entry_bg = colores["entry_bg"]
+            entry_fg = colores["entry_fg"]
 
-        tk.Label(root, text="Usuario").pack()
-        self.entry_user = tk.Entry(root)
-        self.entry_user.pack()
+            # Aplicar color de fondo a la ventana
+            self.root.configure(bg=bg_color)
 
-        tk.Label(root, text="Contraseña").pack()
-        self.entry_pass = tk.Entry(root, show="*")
-        self.entry_pass.pack()
+            utils.centrar_ventana(self.root, 300, 200)
 
-        tk.Button(root, text="Iniciar sesión", command=self.login).pack(pady=10)
+            # Campo Usuario
+            tk.Label(root, text="Usuario", bg=bg_color, fg=text_color).pack(pady=(10, 0))
+            self.entry_user = tk.Entry(root, bg=entry_bg, fg=entry_fg)
+            self.entry_user.pack()
+
+            # Campo Contraseña
+            tk.Label(root, text="Contraseña", bg=bg_color, fg=text_color).pack(pady=(10, 0))
+            self.entry_pass = tk.Entry(root, show="*", bg=entry_bg, fg=entry_fg)
+            self.entry_pass.pack()
+
+            # Botón Iniciar sesión
+            tk.Button(
+                root,
+                text="Iniciar sesión",
+                command=self.login,
+                bg=btn_color,
+                fg="white",
+                activebackground=text_color,
+                activeforeground="white"
+            ).pack(pady=15)
+
+
 
     def login(self):
         usuario = self.entry_user.get()
