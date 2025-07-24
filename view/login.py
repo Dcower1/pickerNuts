@@ -8,43 +8,44 @@ from models.DTO.usuario_dto import Usuario
 
 class LoginView:
     def __init__(self, root, on_login_success):
-            self.root = root
-            self.on_login_success = on_login_success
-            self.root.title("Inicio de sesión")
+        self.root = root
+        self.on_login_success = on_login_success
+        self.root.title("Inicio de sesión")
 
-            # Obtener colores
-            colores = obtener_colores()
-            bg_color = colores["bg_color"]
-            btn_color = colores["btn_color"]
-            text_color = colores["text_color"]
-            entry_bg = colores["entry_bg"]
-            entry_fg = colores["entry_fg"]
+        # Obtener colores
+        colores = obtener_colores()
+        bg_color = colores["fondo"]
+        btn_color = colores["boton"]
+        text_color = colores["texto"]
+        entry_bg = colores["form_bg"]
+        header_color = colores["tabla_header"]
+        
 
-            # Aplicar color de fondo a la ventana
-            self.root.configure(bg=bg_color)
+        self.root.configure(bg=bg_color)
+        utils.centrar_ventana(self.root, 950, 550)
 
-            utils.centrar_ventana(self.root, 300, 200)
+        
+        frame_login = tk.Frame(root, bg=header_color, bd=2, relief="groove")
+        frame_login.place(relx=0.5, rely=0.5, anchor="center")
 
-            # Campo Usuario
-            tk.Label(root, text="Usuario", bg=bg_color, fg=text_color).pack(pady=(10, 0))
-            self.entry_user = tk.Entry(root, bg=entry_bg, fg=entry_fg)
-            self.entry_user.pack()
+        # login
+        tk.Label(frame_login, text="Usuario", bg=header_color, fg=text_color, font=("Segoe UI", 12)).pack(padx=20, pady=(20, 5))
+        self.entry_user = tk.Entry(frame_login, bg=entry_bg, fg=text_color)
+        self.entry_user.pack(padx=20, pady=5)
 
-            # Campo Contraseña
-            tk.Label(root, text="Contraseña", bg=bg_color, fg=text_color).pack(pady=(10, 0))
-            self.entry_pass = tk.Entry(root, show="*", bg=entry_bg, fg=entry_fg)
-            self.entry_pass.pack()
+        tk.Label(frame_login, text="Contraseña", bg=header_color, fg=text_color, font=("Segoe UI", 12)).pack(padx=20, pady=(10, 5))
+        self.entry_pass = tk.Entry(frame_login, show="*", bg=entry_bg, fg=text_color)
+        self.entry_pass.pack(padx=20, pady=5)
 
-            # Botón Iniciar sesión
-            tk.Button(
-                root,
-                text="Iniciar sesión",
-                command=self.login,
-                bg=btn_color,
-                fg="white",
-                activebackground=text_color,
-                activeforeground="white"
-            ).pack(pady=15)
+        tk.Button(
+            frame_login,
+            text="Iniciar sesión",
+            command=self.login,
+            bg=btn_color,
+            fg="white",
+            activebackground=text_color,
+            activeforeground="white"
+        ).pack(pady=20)
 
 
 

@@ -5,7 +5,7 @@ import os
 from components import utils
 from models.DAO.proveedor_dao import ProveedorDAO
 
-from components.utils import colores_wit
+from components.utils import obtener_colores
 
 
 img_path = os.path.join("components", "img", "banner_Nuts.png")
@@ -21,7 +21,7 @@ class BaseProveedorView:
         self.root.configure(bg="#FBE9D0")
         self.root.resizable(False, False)
         #colores 
-        self.colores = colores_wit()
+        self.colores = obtener_colores()
 
         self.crear_widgets()
 
@@ -83,7 +83,7 @@ class BaseProveedorView:
         if os.path.isfile(img_path):
             try:
                 original_img = Image.open(img_path)
-                resized = original_img.resize((600, 130), Image.Resampling.LANCZOS)
+                resized = original_img.resize((650, 130), Image.Resampling.LANCZOS)
                 banner_img = ImageTk.PhotoImage(resized)
                 label_img = tk.Label(right_frame, image=banner_img, bg=self.colores["fondo"])
                 label_img.image = banner_img
@@ -96,7 +96,7 @@ class BaseProveedorView:
     # Buscador
         buscador_frame = tk.Frame(right_frame, bg=self.colores["form_bg"], width=600, height=30)
         buscador_frame.grid(row=1, column=0, pady=(0, 10))
-        buscador_frame.grid_propagate(False)  # Fijar tamaño
+        buscador_frame.grid_propagate(False)  
 
         self.search_var = tk.StringVar()
         entry_buscar = tk.Entry(
@@ -106,7 +106,7 @@ class BaseProveedorView:
             textvariable=self.search_var,
             fg="gray"
         )
-        entry_buscar.insert(0, "Buscar...")  # Texto tipo placeholder
+        entry_buscar.insert(0, "Buscar...") 
         entry_buscar.pack(side=tk.LEFT, padx=10, pady=5, fill=tk.X, expand=True)
 
         # Comportamiento placeholder

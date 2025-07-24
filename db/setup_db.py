@@ -36,23 +36,23 @@ def crear_tablas():
         CREATE TABLE IF NOT EXISTS clasificaciones (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             proveedor_id INTEGER NOT NULL,
-            total REAL NOT NULL,
-            fecha TEXT NOT NULL,
-            clase TEXT NOT NULL,
+            fecha TEXT NOT NULL, 
+            total_nueces INTEGER NOT NULL,  
             FOREIGN KEY(proveedor_id) REFERENCES proveedores(id)
         )
     ''')
 
         # Tabla de Métricas para conexión con TensorFlow
     cursor.execute('''
-        CREATE TABLE IF NOT EXISTS metricas (
+    CREATE TABLE IF NOT EXISTS detalle_clasificaciones (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             clasificacion_id INTEGER NOT NULL,
-            tamaño REAL,
-            color TEXT,
-            forma TEXT,
-            peso REAL,
-            FOREIGN KEY(clasificacion_id) REFERENCES clasificacion(id)
+            clase TEXT NOT NULL CHECK(clase IN ('A', 'B', 'C')),
+            peso REAL,      
+            color TEXT,     
+            forma TEXT,     
+            tamaño REAL,    
+            FOREIGN KEY(clasificacion_id) REFERENCES clasificaciones(id)
         )
     ''')
     conn.commit()

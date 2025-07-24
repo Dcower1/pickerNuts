@@ -1,7 +1,9 @@
 import tkinter as tk
-import re # Importa el módulo re para operaciones con expresiones regulares.
+import re 
 
-def centrar_ventana(ventana, ancho, alto): # Centra una ventana de Tkinter en la pantalla.
+
+# Centra una ventana de Tkinter en la pantalla.
+def centrar_ventana(ventana, ancho, alto): 
     ventana.update_idletasks()
     pantalla_ancho = ventana.winfo_screenwidth()
     pantalla_alto = ventana.winfo_screenheight()
@@ -9,7 +11,9 @@ def centrar_ventana(ventana, ancho, alto): # Centra una ventana de Tkinter en la
     y = (pantalla_alto // 2) - (alto // 2)
     ventana.geometry(f"{ancho}x{alto}+{x}+{y}")
 
-def crear_boton_toggle(root, callback, estado_inicial=False): # Crea un botón de alternancia (START/DETENER) que ejecuta un callback.
+
+# Crea un botón de alternancia (START/DETENER) que ejecuta un callback.
+def crear_boton_toggle(root, callback, estado_inicial=False): 
     estado = {'activo': estado_inicial}
 
     def alternar():
@@ -28,7 +32,8 @@ def crear_boton_toggle(root, callback, estado_inicial=False): # Crea un botón d
 
 
 
-def validar_rut(rut): # Valida el formato de un RUT chileno (sin puntos, con guión).
+
+def validar_rut(rut): # Valida el formato de un RUT chileno (sin puntos, con guión) gracias CHATGPT.
     """Valida formato RUT chileno simple (sin puntos, con guión)"""
     rut = rut.upper().replace(".", "").replace("-", "")
     if len(rut) < 2:
@@ -46,19 +51,16 @@ def validar_rut(rut): # Valida el formato de un RUT chileno (sin puntos, con gui
         return dv == verificador
     except:
         return False
+    
 
-def validar_contacto(contacto): # Valida el formato de un número de contacto chileno (+569XXXXXXXX o 9XXXXXXXX).
+# Valida el formato de un número de contacto chileno (+569XXXXXXXX o 9XXXXXXXX).
+def validar_contacto(contacto): 
     """Valida formato número chileno: +569XXXXXXXX o 9XXXXXXXX"""
     return bool(re.match(r"^(\+569\d{8}|9\d{8})$", contacto.strip()))
 
 
 def filtrar_proveedores(lista_proveedores, termino):
-    """
-    Filtra una lista de proveedores por ID, nombre, RUT o contacto.
-    :param lista_proveedores: lista de objetos DTO de proveedores
-    :param termino: string de búsqueda
-    :return: lista filtrada de proveedores
-    """
+
     termino = termino.lower()
     resultado = []
 
@@ -71,16 +73,9 @@ def filtrar_proveedores(lista_proveedores, termino):
 
     return resultado
 
-def obtener_colores():
-    return {
-        "bg_color": "#FFF0DC",
-        "btn_color": "#F0BB78",
-        "text_color": "#543A14",
-        "entry_bg": "#FFFFFF",
-        "entry_fg": "#131010"
-    }
 
-def colores_wit():
+
+def obtener_colores():
     return {
         "fondo": "#FBE9D0",
         "form_bg": "#E8C192",

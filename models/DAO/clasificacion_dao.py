@@ -1,77 +1,164 @@
 import sqlite3
-from datetime import datetime, timedelta
-import random
 
 class ClasificacionDAO:
+    DB_PATH = "sistema_nueces.db"
+
     @staticmethod
-    def obtener_metricas(proveedor_id):
-        conn = sqlite3.connect("sistema_nueces.db")
+    def conectar():
+        return sqlite3.connect(ClasificacionDAO.DB_PATH)
+
+    @staticmethod
+    def obtener_totales_actuales(proveedor_id):
+        """
+        Retorna un diccionario con el conteo total de nueces por clase para el proveedor.
+        Ejemplo: {'A': 120, 'B': 80, 'C': 30, 'total': 230}
+        """
+        conn = ClasificacionDAO.conectar()
         cursor = conn.cursor()
-
-        # Datos básicos del proveedor
-        cursor.execute("SELECT rut, contacto FROM proveedores WHERE id = ?", (proveedor_id,))
-        proveedor = cursor.fetchone()
-        rut = proveedor[0] if proveedor else "Desconocido"
-        contacto = proveedor[1] if proveedor else "No disponible"
-
-        # Total clasificaciones
-        cursor.execute("SELECT COUNT(*) FROM clasificaciones WHERE proveedor_id = ?", (proveedor_id,))
-        total = cursor.fetchone()[0]
-
-        # Conteo por clase
-        cursor.execute("""
-            SELECT clase, COUNT(*) FROM clasificaciones
-            WHERE proveedor_id = ? GROUP BY clase
-        """, (proveedor_id,))
-        conteo = dict(cursor.fetchall())
-        A = conteo.get("A", 0)
-        B = conteo.get("B", 0)
-        C = conteo.get("C", 0)
-
-        # Última fecha
-        cursor.execute("SELECT MAX(fecha) FROM clasificaciones WHERE proveedor_id = ?", (proveedor_id,))
-        ultima_fecha = cursor.fetchone()[0] or "Sin registros"
-
-        # Últimos 5 días
-        cursor.execute("""
-            SELECT DATE(fecha) FROM clasificaciones
-            WHERE proveedor_id = ?
-            GROUP BY DATE(fecha) ORDER BY DATE(fecha) DESC LIMIT 5
-        """, (proveedor_id,))
-        ultimas_fechas = [f[0] for f in cursor.fetchall()]
-        ultimas_fechas.reverse()
-
+        cursor.execute('''
+            SELECT dc.clase, COUNT(*)
+            FROM clasificaciones c
+            JOIN detalle_clasificaciones dc ON c.id = dc.clasificacion_id
+            WHERE c.proveedor_id = ?
+            GROUP BY dc.clase
+        ''', (proveedor_id,))
+        filas = cursor.fetchall()
         conn.close()
 
-        return {
-            'rut': rut,
-            'contacto': contacto,
-            'total': total,
-            'A': A,
-            'B': B,
-            'C': C,
-            'ultima_fecha': ultima_fecha,
-            'ultimas_fechas': ultimas_fechas
-        }
+        totales = {'A': 0, 'B': 0, 'C': 0}
+        for clase, cantidad in filas:
+            totales[clase] = cantidad
+        totales['total'] = sum(totales.values())
+        return totales
+
+    @staticmethod
+    def obtener_fechas_historial(proveedor_id, limite=10):
+        """
+        Obtiene las últimas fechas de clasificaciones para mostrar línea de tiempo.
+        Devuelve lista de strings con fechas ordenadas ascendentemente.
+        """
+        conn = ClasificacionDAO.conectar()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT fecha FROM clasificaciones
+            WHERE proveedor_id = ?
+            ORDER BY fecha DESC
+            LIMIT ?
+        ''', (proveedor_id, limite))
+        filas = cursor.fetchall()
+        conn.close()
+
+        fechas = [fila[0] for fila in filas]
+        return fechas[::-1]  # Ascendente
+
+    @staticmethod
+    def obtener_historial_clases(proveedor_id):
+        """
+        Obtiene datos para graficar evolución histórica de cantidades por clase.
+        Devuelve: (fechas, dict_clases) donde:
+        - fechas: lista de fechas (str) ordenadas ascendentemente.
+        - dict_clases: {'A': [cantidades...], 'B': [...], 'C': [...]}
+        """
+        conn = ClasificacionDAO.conectar()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT c.fecha, dc.clase, COUNT(*)
+            FROM clasificaciones c
+            JOIN detalle_clasificaciones dc ON c.id = dc.clasificacion_id
+            WHERE c.proveedor_id = ?
+            GROUP BY c.fecha, dc.clase
+            ORDER BY c.fecha ASC
+        ''', (proveedor_id,))
+        filas = cursor.fetchall()
+        conn.close()
+
+        fechas = []
+        data = {'A': [], 'B': [], 'C': []}
+        fecha_actual = None
+        temp = {'A': 0, 'B': 0, 'C': 0}
+
+        for fila in filas:
+            fecha, clase, cantidad = fila
+            if fecha != fecha_actual:
+                if fecha_actual is not None:
+                    fechas.append(fecha_actual)
+                    for c in ['A','B','C']:
+                        data[c].append(temp.get(c, 0))
+                fecha_actual = fecha
+                temp = {'A': 0, 'B': 0, 'C': 0}
+            temp[clase] = cantidad
+        # Añadir última fecha
+        if fecha_actual is not None:
+            fechas.append(fecha_actual)
+            for c in ['A','B','C']:
+                data[c].append(temp.get(c, 0))
+
+        return fechas, data
 
     @staticmethod
     def insertar_datos_simulados_si_no_existen(proveedor_id):
-        conn = sqlite3.connect("sistema_nueces.db")
+        """
+        Método para insertar datos de prueba si no existen,
+        útil para desarrollo o demo.
+        """
+        conn = ClasificacionDAO.conectar()
         cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM clasificaciones WHERE proveedor_id = ?", (proveedor_id,))
+
+        cursor.execute('SELECT COUNT(*) FROM clasificaciones WHERE proveedor_id = ?', (proveedor_id,))
         count = cursor.fetchone()[0]
 
         if count == 0:
-            print(f"[INFO] Insertando datos simulados para proveedor {proveedor_id}")
-            clases = ['A', 'B', 'C']
-            hoy = datetime.now()
-            for _ in range(30):
-                clase = random.choice(clases)
-                fecha = hoy - timedelta(days=random.randint(0, 5))
-                total = round(random.uniform(20.0, 100.0), 2)  # gramos simulados
-                cursor.execute(
-                    "INSERT INTO clasificaciones (proveedor_id, total, fecha, clase) VALUES (?, ?, ?, ?)",
-                    (proveedor_id, total, fecha.strftime("%Y-%m-%d %H:%M:%S"), clase)
-                )
+            import datetime
+            import random
+
+            fechas = [(datetime.date.today() - datetime.timedelta(days=x)).isoformat() for x in range(10)][::-1]
+
+            for fecha in fechas:
+                # Insertar una clasificación nueva
+                cursor.execute('''
+                    INSERT INTO clasificaciones (proveedor_id, total, fecha, clase)
+                    VALUES (?, ?, ?, ?)
+                ''', (proveedor_id, 0, fecha, 'N/A'))  # 'clase' aquí podría ser dummy
+
+                clasificacion_id = cursor.lastrowid
+
+                # Insertar detalle para cada clase con números aleatorios
+                for clase in ['A', 'B', 'C']:
+                    cantidad = random.randint(10, 50)
+                    for _ in range(cantidad):
+                        cursor.execute('''
+                            INSERT INTO detalle_clasificaciones (clasificacion_id, clase)
+                            VALUES (?, ?)
+                        ''', (clasificacion_id, clase))
+
             conn.commit()
         conn.close()
+
+    @staticmethod
+    def guardar_historial(proveedor_id, fecha):
+        """
+        Guarda un registro en el historial de clasificaciones para un proveedor y fecha dada.
+
+        Args:
+            proveedor_id (int): ID del proveedor.
+            fecha (str): Fecha en formato 'YYYY-MM-DD'.
+
+        Returns:
+            bool: True si se guardó correctamente, False si hubo error.
+        """
+        try:
+            conn = ClasificacionDAO.conectar()
+            cursor = conn.cursor()
+
+            # Insertar nuevo registro en la tabla historial_clasificaciones
+            cursor.execute("""
+                INSERT INTO historial_clasificaciones (proveedor_id, fecha)
+                VALUES (?, ?)
+            """, (proveedor_id, fecha))
+
+            conn.commit()
+            conn.close()
+            return True
+        except Exception as e:
+            print(f"Error al guardar historial: {e}")
+            return False
