@@ -205,7 +205,7 @@ class BaseProveedorView:
 
         for i, p in enumerate(proveedores):
             tag = tags[i % len(tags)]
-            self.tree.insert("", tk.END, values=(p.id, p.nombre, p.rut, p.contacto), tags=(tag,))
+            self.tree.insert("", tk.END, values=(p.id_proveedor, p.nombre, p.rut, p.contacto), tags=(tag,))
 
 
     def buscar_proveedor(self):
@@ -222,7 +222,7 @@ class BaseProveedorView:
 
         for i, p in enumerate(resultados):
             tag = tags[i % len(tags)]
-            self.tree.insert("", tk.END, values=(p.id, p.nombre, p.rut, p.contacto), tags=(tag,))
+            self.tree.insert("", tk.END, values=(p.id_proveedor, p.nombre, p.rut, p.contacto), tags=(tag,))
 
     def abrir_interfaz_proveedor(self, event):
         raise NotImplementedError("Este método debe ser implementado por la subclase.")

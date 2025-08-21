@@ -1,7 +1,7 @@
 # models/usuario.py
 class Usuario:
-    def __init__(self, id, nombre, rol):
-        self.id = id
+    def __init__(self, id_user, nombre, rol):
+        self.id_user = id_user
         self.nombre = nombre
         self.rol = rol
 

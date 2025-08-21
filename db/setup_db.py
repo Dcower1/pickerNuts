@@ -13,7 +13,7 @@ def crear_tablas():
         # Tabla SuperUsuarios
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS superusuarios (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id_user INTEGER PRIMARY KEY AUTOINCREMENT,
             nombre TEXT NOT NULL UNIQUE,
             contrasena_hash TEXT NOT NULL,
             rol INTEGER NOT NULL CHECK(rol IN (1, 2)) -- 1: admin, 2: usuario
@@ -23,7 +23,7 @@ def crear_tablas():
     # Tabla Proveedores
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS proveedores (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id_proveedor INTEGER PRIMARY KEY AUTOINCREMENT,
             nombre TEXT NOT NULL,
             rut TEXT NOT NULL UNIQUE,
             contacto TEXT,
@@ -34,27 +34,44 @@ def crear_tablas():
     # Tabla Clasificación / Trazabilidad
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS clasificaciones (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id_clasificacion INTEGER PRIMARY KEY AUTOINCREMENT,
             proveedor_id INTEGER NOT NULL,
             fecha TEXT NOT NULL, 
             total_nueces INTEGER NOT NULL,  
-            FOREIGN KEY(proveedor_id) REFERENCES proveedores(id)
+            FOREIGN KEY(proveedor_id) REFERENCES proveedores(id_proveedor)
         )
     ''')
 
         # Tabla de Métricas para conexión con TensorFlow
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS detalle_clasificaciones (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id_detalle INTEGER PRIMARY KEY AUTOINCREMENT,
             clasificacion_id INTEGER NOT NULL,
-            clase TEXT NOT NULL CHECK(clase IN ('A', 'B', 'C')),
-            peso REAL,      
+            clase TEXT NOT NULL CHECK(clase IN ('A', 'B', 'C', 'D')),   
             color TEXT,     
             forma TEXT,     
-            tamaño REAL,    
-            FOREIGN KEY(clasificacion_id) REFERENCES clasificaciones(id)
+            tamano REAL,    
+            FOREIGN KEY(clasificacion_id) REFERENCES clasificaciones(id_clasificacion)
         )
     ''')
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS historial_metricas (
+            id_historial INTEGER PRIMARY KEY AUTOINCREMENT,  
+            clasificacion_id INTEGER NOT NULL,
+            proveedor_id INTEGER NOT NULL,
+            fecha TEXT NOT NULL,
+            total_nueces INTEGER NOT NULL,
+            cantidad_A INTEGER DEFAULT 0,
+            cantidad_B INTEGER DEFAULT 0,
+            cantidad_C INTEGER DEFAULT 0,
+            cantidad_D INTEGER DEFAULT 0,
+            promedio_tamaño REAL,
+            distribucion_color TEXT,
+            FOREIGN KEY(clasificacion_id) REFERENCES clasificaciones(id_clasificacion),
+            FOREIGN KEY(proveedor_id) REFERENCES proveedores(id_proveedor)                                  
+        )
+    ''')
+
     conn.commit()
     conn.close()
 

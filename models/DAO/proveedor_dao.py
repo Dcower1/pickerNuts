@@ -6,7 +6,7 @@ class ProveedorDAO:
     def obtener_por_id(proveedor_id):
         conn = conectar()
         cursor = conn.cursor()
-        cursor.execute("SELECT id, nombre, rut, contacto, estado FROM proveedores WHERE id = ?", (proveedor_id,))
+        cursor.execute("SELECT id_proveedor, nombre, rut, contacto, estado FROM proveedores WHERE id_proveedor = ?", (proveedor_id,))
         row = cursor.fetchone()
         conn.close()
         if row:
@@ -17,7 +17,7 @@ class ProveedorDAO:
     def obtener_todos():
         conn = conectar()
         cursor = conn.cursor()
-        cursor.execute("SELECT id, nombre, rut, contacto, estado FROM proveedores")
+        cursor.execute("SELECT id_proveedor, nombre, rut, contacto, estado FROM proveedores")
         rows = cursor.fetchall()
         conn.close()
         return [ProveedorDTO(*r) for r in rows]
@@ -45,7 +45,7 @@ class ProveedorDAO:
             conn = conectar()
             cursor = conn.cursor()
             cursor.execute(
-                "UPDATE proveedores SET nombre = ?, rut = ?, contacto = ? WHERE id = ?",
+                "UPDATE proveedores SET nombre = ?, rut = ?, contacto = ? WHERE id_proveedor = ?",
                 (nombre, rut, contacto, proveedor_id)
             )
             conn.commit()
@@ -62,7 +62,7 @@ class ProveedorDAO:
             conn = conectar()
             cursor = conn.cursor()
             cursor.execute(
-                "UPDATE proveedores SET estado = ? WHERE id = ?",
+                "UPDATE proveedores SET estado = ? WHERE id_proveedor = ?",
                 (nuevo_estado, proveedor_id)
             )
             conn.commit()
@@ -105,7 +105,7 @@ class ProveedorDAO:
     def obtener_activos():
         conn = conectar()
         cursor = conn.cursor()
-        cursor.execute("SELECT id, nombre, rut, contacto, estado FROM proveedores WHERE estado = 1")
+        cursor.execute("SELECT id_proveedor, nombre, rut, contacto, estado FROM proveedores WHERE estado = 1")
         rows = cursor.fetchall()
         conn.close()
         return [ProveedorDTO(*r) for r in rows]
@@ -114,7 +114,7 @@ class ProveedorDAO:
     def obtener_inactivos():
         conn = conectar()
         cursor = conn.cursor()
-        cursor.execute("SELECT id, nombre, rut, contacto, estado FROM proveedores WHERE estado = 2")
+        cursor.execute("SELECT id_proveedor, nombre, rut, contacto, estado FROM proveedores WHERE estado = 2")
         rows = cursor.fetchall()
         conn.close()
         return [ProveedorDTO(*r) for r in rows]

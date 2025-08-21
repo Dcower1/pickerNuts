@@ -18,7 +18,7 @@ class ClasificacionDAO:
         cursor.execute('''
             SELECT dc.clase, COUNT(*)
             FROM clasificaciones c
-            JOIN detalle_clasificaciones dc ON c.id = dc.clasificacion_id
+            JOIN detalle_clasificaciones dc ON c.proveedor_id = dc.clasificacion_id
             WHERE c.proveedor_id = ?
             GROUP BY dc.clase
         ''', (proveedor_id,))
@@ -64,7 +64,7 @@ class ClasificacionDAO:
         cursor.execute('''
             SELECT c.fecha, dc.clase, COUNT(*)
             FROM clasificaciones c
-            JOIN detalle_clasificaciones dc ON c.id = dc.clasificacion_id
+            JOIN detalle_clasificaciones dc ON c.proveedor_id = dc.clasificacion_id
             WHERE c.proveedor_id = ?
             GROUP BY c.fecha, dc.clase
             ORDER BY c.fecha ASC

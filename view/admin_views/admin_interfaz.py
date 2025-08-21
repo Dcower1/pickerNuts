@@ -17,13 +17,13 @@ class admin_InterfazProveedorView:
         self.editando = False
         self.control_produccion = ControlProduccion(self.proveedor)
 
-        self.totales_actuales = ClasificacionDAO.obtener_totales_actuales(self.proveedor.id)
-        self.fechas_historial = ClasificacionDAO.obtener_fechas_historial(self.proveedor.id)
-        self.fechas, self.historial_clases = ClasificacionDAO.obtener_historial_clases(self.proveedor.id)
+        self.totales_actuales = ClasificacionDAO.obtener_totales_actuales(self.proveedor.id_proveedor)
+        self.fechas_historial = ClasificacionDAO.obtener_fechas_historial(self.proveedor.id_proveedor)
+        self.fechas, self.historial_clases = ClasificacionDAO.obtener_historial_clases(self.proveedor.id_proveedor)
 
         self.simulacion_activa = False
         self.simulacion_job = None
-        self.proveedor_id = self.proveedor.id
+        self.proveedor_id = self.proveedor.id_proveedor
 
         self.colores = obtener_colores()
 
@@ -117,14 +117,14 @@ class admin_InterfazProveedorView:
 
 
     def actualizar_historial(self):
-        self.totales_actuales = ClasificacionDAO.obtener_totales_actuales(self.proveedor.id)
-        self.fechas, self.historial_clases = ClasificacionDAO.obtener_historial_clases(self.proveedor.id)
+        self.totales_actuales = ClasificacionDAO.obtener_totales_actuales(self.proveedor.id_proveedor)
+        self.fechas, self.historial_clases = ClasificacionDAO.obtener_historial_clases(self.proveedor.id_proveedor)
         self.graficar_lineas(self.fechas, self.historial_clases)
 
 
     def eliminar_proveedor(self):
         if messagebox.askyesno("Confirmar", "¿Estás seguro que deseas eliminar este proveedor?"):
-            exito = ProveedorDAO.eliminar_logico(self.proveedor.id)
+            exito = ProveedorDAO.eliminar_logico(self.proveedor.id_proveedor)
             if exito:
                 if self.callback_actualizar:
                     self.callback_actualizar()
@@ -134,7 +134,7 @@ class admin_InterfazProveedorView:
 
     def activar_proveedor(self):
         if messagebox.askyesno("Confirmar", "¿Deseas activar este proveedor?"):
-            exito = ProveedorDAO.activar_proveedor(self.proveedor.id)
+            exito = ProveedorDAO.activar_proveedor(self.proveedor.id_proveedor)
             if exito:
                 messagebox.showinfo("Éxito", "Proveedor activado correctamente.")
                 self.proveedor.estado = 1
@@ -194,7 +194,7 @@ class admin_InterfazProveedorView:
             messagebox.showerror("Error", "Nombre y contacto no pueden estar vacíos.")
             return
 
-        actualizado = ProveedorDAO.actualizar(self.proveedor.id, nuevo_nombre, nuevo_rut, nuevo_contacto)
+        actualizado = ProveedorDAO.actualizar(self.proveedor.id_proveedor, nuevo_nombre, nuevo_rut, nuevo_contacto)
         if actualizado:
             messagebox.showinfo("Éxito", "Proveedor actualizado correctamente.")
             self.proveedor.nombre = nuevo_nombre
