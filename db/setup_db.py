@@ -15,8 +15,9 @@ def crear_tablas():
         CREATE TABLE IF NOT EXISTS superusuarios (
             id_user INTEGER PRIMARY KEY AUTOINCREMENT,
             nombre TEXT NOT NULL UNIQUE,
+            rut TEXT NOT NULL UNIQUE,
             contrasena_hash TEXT NOT NULL,
-            rol INTEGER NOT NULL CHECK(rol IN (1, 2)) -- 1: admin, 2: usuario
+            rol INTEGER NOT NULL CHECK(rol IN (1, 2)) -- 1: admin/supervisor, 2: usuario
         )
     ''')
 
@@ -81,11 +82,13 @@ def crear_tablas():
 
 
 #Funciones para insertar el usuario y el admin, la contraseña esta hasheada 
+# Función para insertar el admin/supervisor
 def insertar_admin():
     conn = conectar()
     cursor = conn.cursor()
 
     nombre = "admin"
+    rut = "215163725"  # RUT con guión, más estándar
     password = "qwerty"
     password_hash = hashlib.sha256(password.encode()).hexdigest()
 
@@ -93,8 +96,10 @@ def insertar_admin():
     existe = cursor.fetchone()[0]
 
     if not existe:
-        cursor.execute("INSERT INTO superusuarios (nombre, contrasena_hash, rol) VALUES (?, ?, ?)",
-                       (nombre, password_hash, 1))  # 1 para admin
+        cursor.execute(
+            "INSERT INTO superusuarios (nombre, rut, contrasena_hash, rol) VALUES (?, ?, ?, ?)",
+            (nombre, rut, password_hash, 1)  # 1 = admin/supervisor
+        )
         print("✅ Administrador insertado correctamente.")
     else:
         print("ℹ️ El administrador ya existe en la base de datos.")
@@ -102,11 +107,14 @@ def insertar_admin():
     conn.commit()
     conn.close()
 
+
+# Función para insertar un usuario normal
 def insertar_usuario():
     conn = conectar()
     cursor = conn.cursor()
 
     nombre = "usuario"
+    rut = "123456789"
     password = "qwerty"
     password_hash = hashlib.sha256(password.encode()).hexdigest()
 
@@ -114,11 +122,13 @@ def insertar_usuario():
     existe = cursor.fetchone()[0]
 
     if not existe:
-        cursor.execute("INSERT INTO superusuarios (nombre, contrasena_hash, rol) VALUES (?, ?, ?)",
-                       (nombre, password_hash, 2))  # 2 para usuario
+        cursor.execute(
+            "INSERT INTO superusuarios (nombre, rut, contrasena_hash, rol) VALUES (?, ?, ?, ?)",
+            (nombre, rut, password_hash, 2)  # 2 = usuario
+        )
         print("✅ Usuario insertado correctamente.")
     else:
-        print("ℹ️ El Usuario ya existe en la base de datos.")
+        print("ℹ️ El usuario ya existe en la base de datos.")
 
     conn.commit()
     conn.close()

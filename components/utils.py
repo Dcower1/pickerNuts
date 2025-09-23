@@ -30,6 +30,17 @@ def crear_boton_toggle(root, callback, estado_inicial=False):
     boton.estado = estado
     return boton
 
+def formatear_rut(rut: str) -> str:
+    """Formatea un RUT sin puntos ni guión -> XX.XXX.XXX-X"""
+    if not rut.isdigit():
+        return rut  # si viene raro, lo dejo como está
+    
+    cuerpo = rut[:-1]
+    dv = rut[-1]
+    cuerpo_con_puntos = f"{int(cuerpo):,}".replace(",", ".")
+    return f"{cuerpo_con_puntos}-{dv}"
+
+
 
 
 
@@ -65,7 +76,7 @@ def filtrar_proveedores(lista_proveedores, termino):
     resultado = []
 
     for p in lista_proveedores:
-        if (termino in str(p.id).lower() or
+        if (termino in str(p.id_proveedor).lower() or
             termino in p.nombre.lower() or
             termino in p.rut.lower() or
             termino in p.contacto.lower()):
