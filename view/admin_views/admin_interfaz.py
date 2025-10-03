@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from components import utils
 from components.utils import obtener_colores
 from models.DAO.camara import Camara, ConfigBotonCamara
+from models.DAO.Tensflow import ModeloNuecesInterpreter
 from models.DAO.proveedor_dao import ProveedorDAO
 
 COLORS = obtener_colores()
@@ -18,6 +19,7 @@ class admin_InterfazProveedorView:
         self.editando = False
         self.produccion_activa = False
         self.camara: Camara | None = None
+        self.interprete = ModeloNuecesInterpreter()
 
         self.colores = COLORS
         self.root = tk.Toplevel()
@@ -64,7 +66,13 @@ class admin_InterfazProveedorView:
             color_inicio=(self.colores["boton"], self.colores["boton_texto"]),
             color_detener=("red", "white"),
         )
-        self.camara = Camara(self.root, self.lbl_camara, self.btn_start, config_boton=config_boton)
+        self.camara = Camara(
+            self.root,
+            self.lbl_camara,
+            self.btn_start,
+            config_boton=config_boton,
+            frame_callback=self.interprete.enviar_frame,
+        )
         self.btn_start.config(command=self.camara.toggle)
 
         # --- Boton Reporte ---
@@ -225,4 +233,6 @@ class admin_InterfazProveedorView:
     def cerrar(self):
         if self.camara:
             self.camara.cerrar()
+        if hasattr(self, "interprete") and self.interprete:
+            self.interprete.cerrar()
         self.root.destroy()

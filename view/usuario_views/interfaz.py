@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from components.utils import obtener_colores
 from components import utils
 from models.DAO.camara import Camara, ConfigBotonCamara
+from models.DAO.Tensflow import ModeloNuecesInterpreter
 
 COLORS = obtener_colores()
 
@@ -15,6 +16,7 @@ class InterfazView:
         self.proveedor = proveedor
         self.colores = COLORS
         self.camara: Camara | None = None
+        self.interprete = ModeloNuecesInterpreter()
         self.construir_interfaz()
         self.root.protocol("WM_DELETE_WINDOW", self.cerrar)
 
@@ -52,7 +54,13 @@ class InterfazView:
             color_inicio=(self.colores["boton"], self.colores["boton_texto"]),
             color_detener=("red", "white"),
         )
-        self.camara = Camara(self.root, self.lbl_camara, self.btn_start, config_boton=config_boton)
+        self.camara = Camara(
+            self.root,
+            self.lbl_camara,
+            self.btn_start,
+            config_boton=config_boton,
+            frame_callback=self.interprete.enviar_frame,
+        )
         self.btn_start.config(command=self.camara.toggle)
 
         # --- Boton Reporte ---
@@ -104,4 +112,6 @@ class InterfazView:
     def cerrar(self):
         if self.camara:
             self.camara.cerrar()
+        if hasattr(self, "interprete") and self.interprete:
+            self.interprete.cerrar()
         self.root.destroy()
