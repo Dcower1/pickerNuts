@@ -19,7 +19,7 @@ class BaseProveedorView:
         self.root = root
         self.usuario_activo = usuario_activo
         self.root.title(titulo)
-        utils.centrar_ventana(self.root, 950, 550)
+        utils.centrar_ventana(self.root, 800, 480)
         #self.root.geometry("950x550")
         self.root.configure(bg="#FBE9D0")
         self.root.resizable(False, False)
