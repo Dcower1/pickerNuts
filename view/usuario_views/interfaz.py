@@ -7,6 +7,8 @@ import cv2
 
 from components.utils import obtener_colores
 from components import utils
+from models.DAO.camara import Camara, ConfigBotonCamara
+from models.DAO.Tensflow import ModeloNuecesInterpreter
 
 COLORS = obtener_colores()
 
@@ -16,12 +18,8 @@ class InterfazView:
         self.root = root
         self.proveedor = proveedor
         self.colores = COLORS
-        self.cap = None
-        self.capturando = False
-        self.camara_job = None
-        self.imagen_camara = None
-        self.btn_start_bg = self.colores["boton"]
-        self.btn_start_fg = self.colores["boton_texto"]
+        self.camara: Camara | None = None
+        self.interprete = ModeloNuecesInterpreter()
         self.construir_interfaz()
         self.root.protocol("WM_DELETE_WINDOW", self.cerrar)
 
@@ -52,7 +50,22 @@ class InterfazView:
                                    font=("Segoe UI", 12, "bold"), command=self.toggle_camara)
         self.btn_start.place(x=340, y=150, width=120, height=45)
 
-        # --- Botón Reporte ---
+        config_boton = ConfigBotonCamara(
+            texto_inicio="START",
+            texto_detener="DETENER",
+            color_inicio=(self.colores["boton"], self.colores["boton_texto"]),
+            color_detener=("red", "white"),
+        )
+        self.camara = Camara(
+            self.root,
+            self.lbl_camara,
+            self.btn_start,
+            config_boton=config_boton,
+            frame_callback=self.interprete.enviar_frame,
+        )
+        self.btn_start.config(command=self.camara.toggle)
+
+        # --- Boton Reporte ---
         btn_reporte = tk.Button(self.root, text="Reporte", bg=self.colores["boton"], fg=self.colores["boton_texto"])
         btn_reporte.place(x=480, y=150, width=100, height=40)
 
@@ -171,5 +184,8 @@ class InterfazView:
             self.btn_start.config(text="START", bg=self.btn_start_bg, fg=self.btn_start_fg)
 
     def cerrar(self):
-        self.detener_camara()
+        if self.camara:
+            self.camara.cerrar()
+        if hasattr(self, "interprete") and self.interprete:
+            self.interprete.cerrar()
         self.root.destroy()

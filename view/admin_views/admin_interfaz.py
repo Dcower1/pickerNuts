@@ -4,6 +4,8 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt
 from components import utils
 from components.utils import obtener_colores
+from models.DAO.camara import Camara, ConfigBotonCamara
+from models.DAO.Tensflow import ModeloNuecesInterpreter
 from models.DAO.proveedor_dao import ProveedorDAO
 
 COLORS = obtener_colores()
@@ -15,6 +17,8 @@ class admin_InterfazProveedorView:
         self.callback_actualizar = callback_actualizar
         self.editando = False
         self.produccion_activa = False
+        self.camara: Camara | None = None
+        self.interprete = ModeloNuecesInterpreter()
 
         self.colores = COLORS
         self.root = tk.Toplevel()
@@ -58,7 +62,22 @@ class admin_InterfazProveedorView:
                               command=lambda: self.toggle_produccion(True))
         btn_start.place(x=340, y=150, width=120, height=45)
 
-        # --- Botón Reporte ---
+        config_boton = ConfigBotonCamara(
+            texto_inicio="START",
+            texto_detener="DETENER",
+            color_inicio=(self.colores["boton"], self.colores["boton_texto"]),
+            color_detener=("red", "white"),
+        )
+        self.camara = Camara(
+            self.root,
+            self.lbl_camara,
+            self.btn_start,
+            config_boton=config_boton,
+            frame_callback=self.interprete.enviar_frame,
+        )
+        self.btn_start.config(command=self.camara.toggle)
+
+        # --- Boton Reporte ---
         btn_reporte = tk.Button(self.root, text="Reporte", bg=self.colores["boton"], fg=self.colores["boton_texto"])
         btn_reporte.place(x=480, y=150, width=100, height=40)
 
@@ -202,4 +221,13 @@ class admin_InterfazProveedorView:
 
         self.lbl_nombre.pack(anchor="w", padx=10, pady=2)
         self.lbl_contacto.pack(anchor="w", padx=10, pady=2)
-        self.btn_editar.config(text="✏️ Editar Proveedor", command=self.modo_edicion)
+
+        # Restauramos boton
+        self.btn_editar.config(text="Editar Proveedor", command=self.modo_edicion)
+
+    def cerrar(self):
+        if self.camara:
+            self.camara.cerrar()
+        if hasattr(self, "interprete") and self.interprete:
+            self.interprete.cerrar()
+        self.root.destroy()

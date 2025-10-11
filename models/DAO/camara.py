@@ -1,9 +1,7 @@
-"""Control de camara para interfaces Tkinter."""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Optional, Tuple, Union
+from typing import Any, Callable, Optional, Tuple, Union
 
 import cv2
 from PIL import Image, ImageTk
@@ -33,6 +31,7 @@ class Camara:
         fuente: FuenteCamara = 0,
         delay_ms: int = 30,
         config_boton: Optional[ConfigBotonCamara] = None,
+        frame_callback: Optional[Callable[[Any], None]] = None,
     ) -> None:
         self.root = root
         self.etiqueta_video = etiqueta_video
@@ -46,6 +45,7 @@ class Camara:
             texto_inicio=str(boton_start.cget("text")),
             color_inicio=(boton_start.cget("bg"), boton_start.cget("fg")),
         )
+        self.frame_callback = frame_callback
 
         # Ajusta valores faltantes del ConfigBotonCamara
         if not self.config_boton.color_detener[0]:
@@ -119,6 +119,12 @@ class Camara:
             messagebox.showwarning("Camara", "Se perdio la senal de la camara.")
             self.detener()
             return
+
+        if self.frame_callback:
+            try:
+                self.frame_callback(frame)
+            except Exception as exc:  # pragma: no cover - logging basico
+                print(f"[Camara] Error en frame_callback: {exc}")
 
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         imagen = Image.fromarray(frame_rgb)
