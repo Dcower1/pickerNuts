@@ -1,10 +1,12 @@
-from db.setup_db import crear_tablas
+from db.setup_db import create_tables
+
 import tkinter as tk
 from view.usuario_views import proveedor
 
 
 def iniciar_app():
-    crear_tablas()
+    create_tables()
+
     root = tk.Tk()
 
     proveedor.ProveedorView(root, usuario_activo=None)

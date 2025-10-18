@@ -155,8 +155,9 @@ class BaseProveedorView:
         btn_sup = tk.Button(header_frame, text="2 Proveedores",
                             bg=self.colores["boton"], fg=self.colores["boton_texto"],
                             font=("Segoe UI", 9, "bold"),
-                            command=self.more_proveedores) 
+                            command=self.iniciar_proceso_dos_proveedores)
         btn_sup.pack(side=tk.RIGHT, padx=5)
+
 
         # Treeview
         cols = ("ID", "Nombre del Proveedor", "RUT", "Contacto")
@@ -397,3 +398,6 @@ class BaseProveedorView:
 
         tk.Button(login_win, text="Ingresar", bg=self.colores["boton"],
                   fg=self.colores["boton_texto"], command=autenticar).pack(pady=10)
+
+
+
