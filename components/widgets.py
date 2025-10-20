@@ -57,3 +57,15 @@ class RutEntry(tk.Frame):
         """Limpia el RUT ingresado y el label de formato"""
         self.rut_var.set("")
         self.lbl_formato.config(text="")
+
+    def focus_set(self):
+        """Enfoque directo en el Entry interno."""
+        self.entry.focus_set()
+
+    def focus_force(self):
+        """Forzar el foco sobre el Entry interno."""
+        self.entry.focus_force()
+
+    def focus(self):
+        """Compatibilidad con llamados genéricos a focus()."""
+        self.focus_set()

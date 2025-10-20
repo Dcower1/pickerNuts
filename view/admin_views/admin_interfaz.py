@@ -29,6 +29,7 @@ class admin_InterfazProveedorView:
         self.root.title("Interfaz Clasificación - ADMIN")
         self.root.configure(bg=self.colores["fondo"])
         self.root.geometry("800x600")
+        self._preparar_ventana()
 
         self.camera_backend = None
         self.capturando = False
@@ -169,6 +170,7 @@ class admin_InterfazProveedorView:
 
         self.btn_volver = tk.Button(self.root, text="Volver", command=self.cerrar)
         self.btn_volver.place(x=380, y=540, width=80, height=40)
+        self.root.after_idle(self.btn_start.focus_set)
 
     def toggle_camara(self):
         if self.capturando:
@@ -292,6 +294,10 @@ class admin_InterfazProveedorView:
 
     def cerrar(self):
         self.detener_camara()
+        try:
+            self.root.grab_release()
+        except tk.TclError:
+            pass
         self.root.destroy()
 
     # ----------------- FUNCIONES ADMIN -----------------
@@ -332,6 +338,7 @@ class admin_InterfazProveedorView:
         self.entry_contacto = tk.Entry(self.lbl_contacto.master, font=("Arial", 12))
         self.entry_contacto.insert(0, self.proveedor.contacto)
         self.entry_contacto.pack(anchor="w", padx=10, pady=2)
+        self.entry_nombre.focus_set()
 
         self.btn_editar.config(text="💾 Guardar", command=self.guardar_cambios)
         self.btn_cancelar = tk.Button(self.root, text="❌ Cancelar", bg="gray", fg="white",
@@ -345,6 +352,7 @@ class admin_InterfazProveedorView:
 
         if not nuevo_nombre or not nuevo_contacto:
             messagebox.showerror("Error", "Campos vacíos.")
+            self.entry_nombre.focus_force()
             return
 
         actualizado = ProveedorDAO.actualizar(self.proveedor.id_proveedor, nuevo_nombre, nuevo_rut, nuevo_contacto)
@@ -380,6 +388,7 @@ class admin_InterfazProveedorView:
         self.lbl_nombre.pack(anchor="w", padx=10, pady=2)
         self.lbl_contacto.pack(anchor="w", padx=10, pady=2)
         self.btn_editar.config(text="✏️ Editar Proveedor", command=self.modo_edicion)
+        self.btn_start.focus_set()
 
     def _cargar_modelo(self):
         """Carga el modelo YOLO utilizado en la interfaz de administrador."""
@@ -402,3 +411,13 @@ class admin_InterfazProveedorView:
     def _select_camera_backend(self):
         """Delegar la selección del backend al módulo compartido de cámara."""
         return seleccionar_backend()
+
+    def _preparar_ventana(self):
+        parent = getattr(self.root, "master", None)
+        if parent is not None:
+            self.root.transient(parent)
+        try:
+            self.root.grab_set()
+        except tk.TclError:
+            pass
+        self.root.focus_force()

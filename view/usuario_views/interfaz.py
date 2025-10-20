@@ -32,6 +32,7 @@ class InterfazView:
         self.model_error = None
         self.model = self._cargar_modelo()
         self.fps_var = tk.StringVar(value="FPS: --.-")
+        self._preparar_ventana()
         self.construir_interfaz()
         self.root.protocol("WM_DELETE_WINDOW", self.cerrar)
 
@@ -189,6 +190,18 @@ class InterfazView:
         # --- Botón Volver ---
         self.btn_volver = tk.Button(self.root, text="Volver", command=self.cerrar)
         self.btn_volver.place(x=30, y=540, width=80, height=35)
+        self.root.after_idle(self.btn_start.focus_set)
+
+    def _preparar_ventana(self):
+        parent = getattr(self.root, "master", None)
+        if isinstance(self.root, tk.Toplevel):
+            if parent is not None:
+                self.root.transient(parent)
+            try:
+                self.root.grab_set()
+            except tk.TclError:
+                pass
+        self.root.focus_force()
 
     # =================== CÁMARA ===================
     def toggle_camara(self):
@@ -314,6 +327,10 @@ class InterfazView:
 
     def cerrar(self):
         self.detener_camara()
+        try:
+            self.root.grab_release()
+        except tk.TclError:
+            pass
         self.root.destroy()
 
     def _cargar_modelo(self):
