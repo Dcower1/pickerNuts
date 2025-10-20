@@ -57,3 +57,9 @@ class RutEntry(tk.Frame):
         """Limpia el RUT ingresado y el label de formato"""
         self.rut_var.set("")
         self.lbl_formato.config(text="")
+
+    def disable(self):
+        self.entry.config(state="disabled")
+
+    def enable(self):
+        self.entry.config(state="normal")

@@ -9,7 +9,9 @@ from models.DAO.superusuario_dao import SuperUsuarioDAO
 import re
 from components.widgets import RutEntry
 from components.utils import obtener_colores
-
+from models.DAO.proceso_lote_dao import ProcesoLoteDAO
+from view.usuario_views.interfazdoble import InterfazViewDoble
+from components.config import SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN, COL_FONDO, IMG_BANNER
 
 img_path = os.path.join("components", "img", "banner_Nuts.png")
 
@@ -18,18 +20,16 @@ class BaseProveedorView:
     def __init__(self, root, titulo="Proveedores - Diseño Mockup", usuario_activo=None):
         self.root = root
         self.usuario_activo = usuario_activo
+        self.supervisor_activo = False
         self.root.title(titulo)
         utils.centrar_ventana(self.root, 800, 480)
-        #self.root.geometry("950x550")
         self.root.configure(bg="#FBE9D0")
         self.root.resizable(False, False)
-        #colores 
         self.colores = obtener_colores()
-
         self.crear_widgets()
 
     def crear_widgets(self):
-       # Top frame
+        # Top frame
         self.top_frame = tk.Frame(self.root, bg=self.colores["fondo"])
         self.top_frame.pack(fill=tk.X, padx=10, pady=5)
 
@@ -39,13 +39,11 @@ class BaseProveedorView:
         self.btn_config.pack(side=tk.RIGHT, padx=5)
 
         self.btn_sup = tk.Button(self.top_frame, text="Modo Supervisor", bg=self.colores["boton"],
-                                fg=self.colores["boton_texto"], font=("Segoe UI", 9, "bold"),
-                                command=self.modo_supervisor)
+                                 fg=self.colores["boton_texto"], font=("Segoe UI", 9, "bold"),
+                                 command=self.modo_supervisor)
         self.btn_sup.pack(side=tk.RIGHT, padx=5)
 
-        # importante: referencia para poder mostrar/ocultar luego
         self.btn_logout = None
-
 
         # Main frame
         main_frame = tk.Frame(self.root, bg=self.colores["fondo"])
@@ -54,38 +52,36 @@ class BaseProveedorView:
         main_frame.grid_columnconfigure(1, weight=2)
         main_frame.grid_rowconfigure(0, weight=1)
 
-        # Define colores para filas intercaladas en una lista
         colores_filas = ["#F2DBBB", "#E8C191", "#F2DABD"]
 
         # Formulario izquierdo
         form_frame = tk.LabelFrame(main_frame, text="Formulario Proveedores", bg=self.colores["form_bg"],
-                                fg=self.colores["texto"], font=("Segoe UI", 10, "bold"), padx=10, pady=10)
+                                   fg=self.colores["texto"], font=("Segoe UI", 10, "bold"), padx=10, pady=10)
         form_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 10), pady=5)
         form_frame.grid_columnconfigure(1, weight=1)
 
-        # Nombre
         tk.Label(form_frame, text="Nombre", bg=self.colores["form_bg"]).grid(row=0, column=0, sticky="w", pady=5)
         self.entry_nombre = tk.Entry(form_frame)
         self.entry_nombre.grid(row=0, column=1, sticky="ew", pady=5)
 
-   
-        # Rut
         tk.Label(form_frame, text="Rut", bg=self.colores["form_bg"]).grid(row=1, column=0, sticky="w", pady=5)
-
-        # Usar el widget reutilizable
         self.rut_widget = RutEntry(form_frame, bg=self.colores["form_bg"], fg=self.colores["texto"])
         self.rut_widget.grid(row=1, column=1, sticky="ew", pady=5)
 
-        # Contacto
         tk.Label(form_frame, text="Contacto", bg=self.colores["form_bg"]).grid(row=3, column=0, sticky="w", pady=5)
         self.entry_contacto = tk.Entry(form_frame)
         self.entry_contacto.grid(row=3, column=1, sticky="ew", pady=5)
 
-        # Botón Registrar (lo bajamos a la fila 4)
-        btn_registrar = tk.Button(form_frame, text="Registrar proveedor", bg=self.colores["boton"],
-                                fg=self.colores["boton_texto"], font=("Segoe UI", 9, "bold"),
-                                command=self.registrar)
-        btn_registrar.grid(row=4, column=0, columnspan=2, pady=15, sticky="ew")
+        self.btn_registrar = tk.Button(
+            form_frame, text="Registrar proveedor", bg=self.colores["boton"],
+            fg=self.colores["boton_texto"], font=("Segoe UI", 9, "bold"),
+            command=self.registrar
+        )
+        self.btn_registrar.grid(row=4, column=0, columnspan=2, pady=15, sticky="ew")
+
+        if not self.supervisor_activo:
+            self._bloquear_formulario()
+
         # Panel derecho
         right_frame = tk.Frame(main_frame, bg=self.colores["fondo"])
         right_frame.grid(row=0, column=1, sticky="nsew")
@@ -106,11 +102,9 @@ class BaseProveedorView:
                 print("Error cargando banner:", e)
 
         # Buscador
-
-    # Buscador
         buscador_frame = tk.Frame(right_frame, bg=self.colores["form_bg"], width=600, height=30)
         buscador_frame.grid(row=1, column=0, pady=(0, 10))
-        buscador_frame.grid_propagate(False)  
+        buscador_frame.grid_propagate(False)
 
         self.search_var = tk.StringVar()
         entry_buscar = tk.Entry(
@@ -120,10 +114,9 @@ class BaseProveedorView:
             textvariable=self.search_var,
             fg="gray"
         )
-        entry_buscar.insert(0, "Buscar...") 
+        entry_buscar.insert(0, "Buscar...")
         entry_buscar.pack(side=tk.LEFT, padx=10, pady=5, fill=tk.X, expand=True)
 
-        # Comportamiento placeholder
         def on_entry_click(event):
             if entry_buscar.get() == "Buscar...":
                 entry_buscar.delete(0, tk.END)
@@ -138,18 +131,17 @@ class BaseProveedorView:
         entry_buscar.bind("<FocusOut>", on_focus_out)
         entry_buscar.bind("<KeyRelease>", lambda event: self.buscar_proveedor())
 
-        # Tabla de proveedores.
+        # Tabla de proveedores
         tabla_frame = tk.LabelFrame(right_frame, text="", bg=self.colores["form_bg"],
                                     fg=self.colores["texto"], font=("Segoe UI", 10, "bold"), padx=5, pady=5)
         tabla_frame.grid(row=2, column=0, sticky="nsew", padx=5, pady=5)
-
 
         header_frame = tk.Frame(tabla_frame, bg=self.colores["form_bg"])
         header_frame.pack(fill=tk.X, pady=2)
 
         lbl_titulo = tk.Label(header_frame, text="Lista de Proveedores",
-                            bg=self.colores["form_bg"], fg=self.colores["texto"],
-                            font=("Segoe UI", 10, "bold"))
+                              bg=self.colores["form_bg"], fg=self.colores["texto"],
+                              font=("Segoe UI", 10, "bold"))
         lbl_titulo.pack(side=tk.LEFT, padx=5)
 
         btn_sup = tk.Button(header_frame, text="2 Proveedores",
@@ -157,7 +149,6 @@ class BaseProveedorView:
                             font=("Segoe UI", 9, "bold"),
                             command=self.iniciar_proceso_dos_proveedores)
         btn_sup.pack(side=tk.RIGHT, padx=5)
-
 
         # Treeview
         cols = ("ID", "Nombre del Proveedor", "RUT", "Contacto")
@@ -169,7 +160,6 @@ class BaseProveedorView:
 
         style = ttk.Style()
         style.theme_use("clam")
-
         style.configure("Treeview",
                         background=self.colores["tabla_fila"],
                         foreground=self.colores["texto"],
@@ -185,12 +175,24 @@ class BaseProveedorView:
                         foreground="white",
                         font=("Segoe UI", 9, "bold"))
 
-        # Configura los tags con un ciclo para mayor flexibilidad
         for i, color in enumerate(colores_filas, start=1):
             self.tree.tag_configure(f"color{i}", background=color)
 
         self.tree.pack(fill=tk.BOTH, expand=True)
         self.actualizar_lista()
+
+
+    def _bloquear_formulario(self):
+        self.entry_nombre.config(state="disabled")
+        self.rut_widget.disable()  # <--- ahora correcto
+        self.entry_contacto.config(state="disabled")
+        self.btn_registrar.config(state="disabled")
+
+    def _habilitar_formulario(self):
+        self.entry_nombre.config(state="normal")
+        self.rut_widget.enable()   # <--- ahora correcto
+        self.entry_contacto.config(state="normal")
+        self.btn_registrar.config(state="normal")
 
     def registrar(self):
         nombre = self.entry_nombre.get().strip()
@@ -217,18 +219,18 @@ class BaseProveedorView:
             messagebox.showerror("Duplicado", "Ya existe un proveedor con ese número.")
             return
 
-        if self.usuario_activo and getattr(self.usuario_activo, "es_admin", False):
+        if self.supervisor_activo:
             if ProveedorDAO.insertar(nombre, rut_limpio, contacto):
                 messagebox.showinfo("Éxito", "Proveedor registrado (Supervisor activo).")
                 self.entry_nombre.delete(0, tk.END)
-                self.rut_widget.set_rut("")  # <-- aquí lo limpias
+                self.rut_widget.set_rut("")
                 self.entry_contacto.delete(0, tk.END)
                 self.actualizar_lista()
-            else:
-                messagebox.showerror("Error", "No se pudo registrar el proveedor.")
         else:
-            self._pedir_autorizacion_supervisor(nombre, rut_limpio, contacto)
-
+            messagebox.showwarning(
+                "Autorización requerida",
+                "Debe activar el modo supervisor antes de registrar un proveedor."
+            )
 
     def actualizar_lista(self):
         self.tree.delete(*self.tree.get_children())
@@ -302,6 +304,8 @@ class BaseProveedorView:
                 fg=self.colores["boton_texto"], command=autenticar).pack(pady=10)
 
     def cerrar_sesion(self):
+        # Marcar que no hay supervisor activo
+        self.supervisor_activo = False
         self.usuario_activo = None
 
         # Ocultar/destruir botón de logout
@@ -313,8 +317,20 @@ class BaseProveedorView:
         if self.btn_sup:
             self.btn_sup.config(state="normal", text="Modo Supervisor")
 
-        messagebox.showinfo("Sesión cerrada", "Has salido del modo supervisor.")
+        # Limpiar campos del formulario
+        self.entry_nombre.delete(0, tk.END)
+        self.rut_widget.set_rut("")  # Limpia el RutEntry
+        self.entry_contacto.delete(0, tk.END)
+
+        # BLOQUEAR FORMULARIO de registrar proveedor
+        self._bloquear_formulario()
+
+        # Actualizar la lista para reflejar cambios
         self.actualizar_lista()
+
+        messagebox.showinfo("Sesión cerrada", "Has salido del modo supervisor.")
+
+
 
     def more_proveedores(self):
         self.pedir_credenciales_supervisor("Activar Modo Supervisor", lambda user: self.mostrar_modo_supervisor())
@@ -332,17 +348,12 @@ class BaseProveedorView:
     def more_proveedores(self):
         self.pedir_credenciales_supervisor("Activar Modo Supervisor", lambda user: self.mostrar_modo_supervisor())
 
-    def cerrar_sesion(self):
-        self.usuario_activo = None
-        if self.btn_logout:
-            self.btn_logout.destroy()
-            self.btn_logout = None
-        if self.btn_sup:
-            self.btn_sup.config(state="normal", text="Modo Supervisor")
-        messagebox.showinfo("Sesión cerrada", "Has salido del modo supervisor.")
-        self.actualizar_lista()
+
 
     def mostrar_modo_supervisor(self):
+        self.supervisor_activo = True
+        self._habilitar_formulario()  # habilita los campos
+
         if not self.btn_logout:
             self.btn_logout = tk.Button(self.top_frame, text="⏻ Cerrar Sesión", bg=self.colores["boton"],
                                         fg=self.colores["boton_texto"], font=("Segoe UI", 9, "bold"),
@@ -353,6 +364,7 @@ class BaseProveedorView:
             self.btn_sup.config(state="disabled", text="Supervisor activo")
 
         self.actualizar_lista()
+
 
     def _pedir_autorizacion_supervisor(self, nombre, rut_limpio, contacto):
         def callback(user):
@@ -400,4 +412,118 @@ class BaseProveedorView:
                   fg=self.colores["boton_texto"], command=autenticar).pack(pady=10)
 
 
+    def iniciar_proceso_dos_proveedores(self):
+        proveedores = ProveedorDAO.obtener_activos()
+        if len(proveedores) < 2:
+            messagebox.showwarning("Atención", "No hay suficientes proveedores activos.")
+            return
 
+        # Crear nueva ventana
+        win = tk.Toplevel(self.root)
+        win.title("Seleccionar 2 proveedores")
+        utils.centrar_ventana(win, 800, 480)
+        win.configure(bg=self.colores["form_bg"])
+        win.resizable(False, False)
+
+        tk.Label(win, text="Selecciona exactamente 2 proveedores", bg=self.colores["form_bg"],
+                 font=("Segoe UI", 10, "bold")).pack(pady=5)
+
+        # Frame con scroll
+        frame_scroll = tk.Frame(win, bg=self.colores["form_bg"])
+        frame_scroll.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+
+        canvas = tk.Canvas(frame_scroll, bg=self.colores["form_bg"])
+        scrollbar = tk.Scrollbar(frame_scroll, orient="vertical", command=canvas.yview)
+        scroll_frame = tk.Frame(canvas, bg=self.colores["form_bg"])
+        scroll_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.create_window((0, 0), window=scroll_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+        # Crear checkboxes de proveedores
+        var_checks = []
+        for p in proveedores:
+            var = tk.IntVar()
+            cb = tk.Checkbutton(scroll_frame, text=f"{p.nombre} ({formatear_rut(p.rut)})",
+                                variable=var, bg=self.colores["form_bg"], anchor="w")
+            cb.pack(fill=tk.X, padx=5, pady=2)
+            var_checks.append((var, p))
+
+        # Frame para porcentajes
+        frame_porcentajes = tk.Frame(win, bg=self.colores["form_bg"])
+        frame_porcentajes.pack(pady=10)
+
+        lbl_p1 = tk.Label(frame_porcentajes, text="Porcentaje Proveedor 1 (%)", bg=self.colores["form_bg"])
+        lbl_p1.grid(row=0, column=0, pady=5)
+        p1_entry = tk.Entry(frame_porcentajes, width=10)
+        p1_entry.grid(row=0, column=1, pady=5, padx=5)
+
+        lbl_p2 = tk.Label(frame_porcentajes, text="Porcentaje Proveedor 2 (%)", bg=self.colores["form_bg"])
+        lbl_p2.grid(row=1, column=0, pady=5)
+        p2_entry = tk.Entry(frame_porcentajes, width=10)
+        p2_entry.grid(row=1, column=1, pady=5, padx=5)
+
+        # Validación solo números
+        vcmd = self.root.register(utils.solo_numeros)
+        p1_entry.config(validate="key", validatecommand=(vcmd, "%P"))
+        p2_entry.config(validate="key", validatecommand=(vcmd, "%P"))
+
+        def actualizar_labels():
+            """Actualiza los nombres de los proveedores en los labels de porcentaje."""
+            seleccionados = [p for var, p in var_checks if var.get() == 1]
+            if len(seleccionados) == 2:
+                lbl_p1.config(text=f"Porcentaje {seleccionados[0].nombre} (%)")
+                lbl_p2.config(text=f"Porcentaje {seleccionados[1].nombre} (%)")
+            else:
+                lbl_p1.config(text="Porcentaje Proveedor 1 (%)")
+                lbl_p2.config(text="Porcentaje Proveedor 2 (%)")
+
+        # Vincular actualización al cambiar checkboxes
+        for var, _ in var_checks:
+            var.trace_add("write", lambda *args: actualizar_labels())
+
+        def confirmar():
+            seleccionados = [p for var, p in var_checks if var.get() == 1]
+            if len(seleccionados) != 2:
+                messagebox.showerror("Error", "Debes seleccionar exactamente 2 proveedores.")
+                return
+
+            try:
+                porc1 = float(p1_entry.get())
+                porc2 = float(p2_entry.get())
+            except ValueError:
+                messagebox.showerror("Error", "Los porcentajes deben ser números.")
+                return
+
+            if abs(porc1 + porc2 - 100) > 0.01:
+                messagebox.showerror("Error", "La suma de los porcentajes debe ser 100%.")
+                return
+
+            # Guardar proceso en base de datos
+            ProcesoLoteDAO.guardar_proceso(seleccionados[0].id_proveedor,
+                                           seleccionados[1].id_proveedor,
+                                           porc1, porc2)
+
+            messagebox.showinfo(
+                "Proceso guardado",
+                f"Proceso registrado con {seleccionados[0].nombre} ({porc1}%) y {seleccionados[1].nombre} ({porc2}%)"
+            )
+            win.destroy()
+            self.abrir_interfaz_clasificacion(seleccionados[0], seleccionados[1], porc1, porc2)
+
+        tk.Button(win, text="Confirmar", bg=self.colores["boton"], fg=self.colores["boton_texto"],
+                  font=("Segoe UI", 9, "bold"), command=confirmar).pack(pady=10)
+
+    def abrir_interfaz_clasificacion(self, prov1, prov2, porc1, porc2):
+        try:
+            # No hace falta importar aquí, ya lo hicimos arriba
+            win_clasificacion = tk.Toplevel(self.root)
+            win_clasificacion.title("Clasificación Doble Proveedor")
+            utils.centrar_ventana(win_clasificacion, 800, 480)
+            win_clasificacion.resizable(False, False)
+
+            # Instanciar la interfaz con ambos proveedores
+            InterfazViewDoble(win_clasificacion, [prov1, prov2])
+        except Exception as e:
+            messagebox.showerror("Error", f"No se pudo abrir la interfaz: {e}")
