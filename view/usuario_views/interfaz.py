@@ -1,4 +1,5 @@
 from pathlib import Path
+import time
 import tkinter as tk
 from tkinter import messagebox
 
@@ -31,8 +32,11 @@ class InterfazView:
         self.preview_size = PREVIEW_SIZE
         self.model_error = None
         self.model = self._cargar_modelo()
+        self._ultima_prediccion = None
+        self._ultima_prediccion_ts = 0.0
         self.fps_var = tk.StringVar(value="FPS: --.-")
         self._preparar_ventana()
+        self._crear_area_desplazable()
         self.construir_interfaz()
         self.root.protocol("WM_DELETE_WINDOW", self.cerrar)
 
@@ -44,7 +48,7 @@ class InterfazView:
 
         # --- Cámara ---
         frame_camara = tk.LabelFrame(
-            self.root,
+            self.content_frame,
             text="Cámara",
             bg=self.colores["form_bg"],
             fg=self.colores["texto"],
@@ -77,7 +81,7 @@ class InterfazView:
 
         # --- Ficha Proveedor ---
         frame_ficha = tk.LabelFrame(
-            self.root,
+            self.content_frame,
             text="Ficha Proveedor",
             bg=self.colores["form_bg"],
             fg=self.colores["texto"],
@@ -102,7 +106,7 @@ class InterfazView:
 
         # --- Botón central START ---
         self.btn_start = tk.Button(
-            self.root,
+            self.content_frame,
             text="START",
             bg=self.btn_start_bg,
             fg=self.btn_start_fg,
@@ -113,7 +117,7 @@ class InterfazView:
 
         # --- Botón Reporte ---
         btn_reporte = tk.Button(
-            self.root,
+            self.content_frame,
             text="Reporte",
             bg=self.colores["boton"],
             fg=self.colores["boton_texto"],
@@ -122,7 +126,7 @@ class InterfazView:
 
         # --- Total Clasificaciones ---
         frame_totales = tk.LabelFrame(
-            self.root,
+            self.content_frame,
             text="Total Clasificaciones: XX",
             bg=self.colores["form_bg"],
             fg=self.colores["texto"],
@@ -150,7 +154,7 @@ class InterfazView:
 
         # --- Producto Selecto ---
         frame_producto = tk.LabelFrame(
-            self.root,
+            self.content_frame,
             text="Producto Selecto",
             bg=self.colores["form_bg"],
             fg=self.colores["texto"],
@@ -176,7 +180,7 @@ class InterfazView:
 
         # --- Historial ---
         frame_historial = tk.LabelFrame(
-            self.root,
+            self.content_frame,
             text="Historial",
             bg=self.colores["form_bg"],
             fg=self.colores["texto"],
@@ -188,9 +192,10 @@ class InterfazView:
             tk.Label(frame_historial, text=f, bg=self.colores["form_bg"]).pack(anchor="w", padx=10, pady=2)
 
         # --- Botón Volver ---
-        self.btn_volver = tk.Button(self.root, text="Volver", command=self.cerrar)
+        self.btn_volver = tk.Button(self.content_frame, text="Volver", command=self.cerrar)
         self.btn_volver.place(x=30, y=540, width=80, height=35)
         self.root.after_idle(self.btn_start.focus_set)
+        self.root.after_idle(self._ajustar_altura_contenido)
 
     def _preparar_ventana(self):
         parent = getattr(self.root, "master", None)
@@ -202,6 +207,106 @@ class InterfazView:
             except tk.TclError:
                 pass
         self.root.focus_force()
+
+    def _crear_area_desplazable(self):
+        self.canvas = tk.Canvas(self.root, bg=self.colores["fondo"], highlightthickness=0)
+        self.scrollbar = tk.Scrollbar(self.root, orient="vertical", command=self.canvas.yview)
+        self.canvas.configure(yscrollcommand=self.scrollbar.set)
+
+        self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        self.content_frame = tk.Frame(self.canvas, bg=self.colores["fondo"])
+        self._canvas_window = self.canvas.create_window((0, 0), window=self.content_frame, anchor="nw")
+
+        self.content_frame.bind("<Configure>", self._actualizar_scrollregion)
+        self.canvas.bind("<Configure>", self._sincronizar_ancho_contenido)
+        self.canvas.bind("<MouseWheel>", self._on_mousewheel)
+        self.canvas.bind("<Button-4>", self._on_mousewheel)
+        self.canvas.bind("<Button-5>", self._on_mousewheel)
+
+    def _actualizar_scrollregion(self, _event):
+        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+
+    def _sincronizar_ancho_contenido(self, event):
+        self.canvas.itemconfigure(self._canvas_window, width=event.width)
+
+    def _on_mousewheel(self, event):
+        delta = getattr(event, "delta", 0)
+        if delta:
+            pasos = int(-1 * (delta / 120))
+            if pasos != 0:
+                self.canvas.yview_scroll(pasos, "units")
+        elif event.num == 4:
+            self.canvas.yview_scroll(-1, "units")
+        elif event.num == 5:
+            self.canvas.yview_scroll(1, "units")
+
+    def _ajustar_altura_contenido(self):
+        if not hasattr(self, "content_frame"):
+            return
+        self.content_frame.update_idletasks()
+        widgets = self.content_frame.winfo_children()
+        if not widgets:
+            return
+        max_y = max(widget.winfo_y() + widget.winfo_height() for widget in widgets)
+        self.content_frame.configure(height=max_y + 40)
+
+    def _reportar_prediccion(self, results, origen="[Clasificación][Usuario]"):
+        if not results:
+            return
+
+        result = results[0]
+        nombre = None
+        confianza = None
+
+        def _nombre_clase(resultado, indice):
+            nombres = getattr(resultado, "names", {}) or {}
+            indice_entero = int(indice)
+            if isinstance(nombres, dict):
+                return nombres.get(indice_entero, str(indice_entero))
+            if isinstance(nombres, (list, tuple)):
+                if 0 <= indice_entero < len(nombres):
+                    return nombres[indice_entero]
+            return str(indice_entero)
+
+        probs = getattr(result, "probs", None)
+        if probs is not None and getattr(probs, "top1", None) is not None:
+            nombre = _nombre_clase(result, probs.top1)
+            top_conf = getattr(probs, "top1conf", None)
+            if top_conf is not None:
+                confianza = float(top_conf)
+        else:
+            boxes = getattr(result, "boxes", None)
+            conf_tensor = getattr(boxes, "conf", None) if boxes is not None else None
+            cls_tensor = getattr(boxes, "cls", None) if boxes is not None else None
+            if conf_tensor is not None and cls_tensor is not None:
+                try:
+                    conf_list = conf_tensor.tolist()
+                    cls_list = cls_tensor.tolist()
+                except AttributeError:
+                    conf_list = list(conf_tensor)
+                    cls_list = list(cls_tensor)
+                if conf_list:
+                    idx_max = max(range(len(conf_list)), key=lambda i: conf_list[i])
+                    confianza = float(conf_list[idx_max])
+                    nombre = _nombre_clase(result, cls_list[idx_max])
+
+        if nombre is None or confianza is None:
+            return
+
+        registro = (nombre, round(confianza, 4))
+        now = time.time()
+
+        if self._ultima_prediccion == registro and now - self._ultima_prediccion_ts < 2.0:
+            return
+
+        if now - self._ultima_prediccion_ts < 2.0:
+            return
+
+        self._ultima_prediccion = registro
+        self._ultima_prediccion_ts = now
+        print(f"{origen} Resultado más probable: {nombre} ({confianza:.1%})", flush=True)
 
     # =================== CÁMARA ===================
     def toggle_camara(self):
@@ -263,6 +368,7 @@ class InterfazView:
         if self.model:
             try:
                 results = self.model(frame, imgsz=256, verbose=False)
+                self._reportar_prediccion(results)
                 annotated_frame = results[0].plot()
                 frame_to_display = annotated_frame
                 annotated = True
@@ -319,6 +425,8 @@ class InterfazView:
         self.lbl_camara.image = None
         self.imagen_camara = None
         self.fps_var.set("FPS: --.-")
+        self._ultima_prediccion = None
+        self._ultima_prediccion_ts = 0.0
         self.restaurar_boton_start()
 
     def restaurar_boton_start(self):

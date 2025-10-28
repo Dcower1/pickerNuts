@@ -1,4 +1,5 @@
 from pathlib import Path
+import time
 import tkinter as tk
 from tkinter import messagebox
 
@@ -41,8 +42,11 @@ class admin_InterfazProveedorView:
         self.preview_size = PREVIEW_SIZE
         self.model_error = None
         self.model = self._cargar_modelo()
+        self._ultima_prediccion = None
+        self._ultima_prediccion_ts = 0.0
         self.fps_var = tk.StringVar(value="FPS: --.-")
 
+        self._crear_area_desplazable()
         utils.centrar_ventana(self.root, 800, 600)
         self.root.protocol("WM_DELETE_WINDOW", self.cerrar)
 
@@ -52,7 +56,7 @@ class admin_InterfazProveedorView:
     def construir_interfaz(self):
         # --- Cámara ---
         frame_camara = tk.LabelFrame(
-            self.root,
+            self.content_frame,
             text="Cámara",
             bg=self.colores["form_bg"],
             fg=self.colores["texto"],
@@ -84,7 +88,7 @@ class admin_InterfazProveedorView:
         self.lbl_fps.place(relx=0.5, rely=0.9, anchor="center")
 
         # --- Ficha Proveedor ---
-        frame_ficha = tk.LabelFrame(self.root, text="Ficha Proveedor", bg=self.colores["form_bg"], fg=self.colores["texto"])
+        frame_ficha = tk.LabelFrame(self.content_frame, text="Ficha Proveedor", bg=self.colores["form_bg"], fg=self.colores["texto"])
         frame_ficha.place(x=510, y=20, width=270, height=120)
 
         self.lbl_nombre = tk.Label(frame_ficha, text=f"Proveedor: {self.proveedor.nombre}", bg=self.colores["form_bg"])
@@ -98,7 +102,7 @@ class admin_InterfazProveedorView:
 
         # --- Botón central START ---
         self.btn_start = tk.Button(
-            self.root,
+            self.content_frame,
             text="START",
             bg=self.btn_start_bg,
             fg=self.btn_start_fg,
@@ -108,11 +112,11 @@ class admin_InterfazProveedorView:
         self.btn_start.place(x=320, y=170, width=120, height=45)
 
         # --- Botón Reporte ---
-        btn_reporte = tk.Button(self.root, text="Reporte", bg=self.colores["boton"], fg=self.colores["boton_texto"])
+        btn_reporte = tk.Button(self.content_frame, text="Reporte", bg=self.colores["boton"], fg=self.colores["boton_texto"])
         btn_reporte.place(x=480, y=150, width=100, height=40)
 
         # --- Total Clasificaciones ---
-        frame_totales = tk.LabelFrame(self.root, text="Total Clasificaciones: XX",
+        frame_totales = tk.LabelFrame(self.content_frame, text="Total Clasificaciones: XX",
                                       bg=self.colores["form_bg"], fg=self.colores["texto"])
         frame_totales.place(x=20, y=300, width=480, height=180)
 
@@ -134,7 +138,7 @@ class admin_InterfazProveedorView:
             canvas.get_tk_widget().grid(row=0, column=i, padx=5, pady=10, sticky="n")
 
         # --- Producto Selecto ---
-        frame_producto = tk.LabelFrame(self.root, text="Producto Selecto",
+        frame_producto = tk.LabelFrame(self.content_frame, text="Producto Selecto",
                                        bg=self.colores["form_bg"], fg=self.colores["texto"])
         frame_producto.place(x=520, y=300, width=250, height=120)
 
@@ -142,7 +146,7 @@ class admin_InterfazProveedorView:
         tk.Label(frame_producto, text="Cuarto 🔒", bg="white", relief="solid", width=10, height=4).pack(side=tk.LEFT, padx=10, pady=10)
 
         # --- Historial ---
-        frame_historial = tk.LabelFrame(self.root, text="Historial",
+        frame_historial = tk.LabelFrame(self.content_frame, text="Historial",
                                         bg=self.colores["form_bg"], fg=self.colores["texto"])
         frame_historial.place(x=520, y=440, width=250, height=120)
 
@@ -152,7 +156,7 @@ class admin_InterfazProveedorView:
 
         # --- Botones ADMIN ---
         self.btn_editar = tk.Button(
-            self.root,
+            self.content_frame,
             text="✏️ Editar Proveedor",
             bg="orange",
             fg="black",
@@ -161,16 +165,17 @@ class admin_InterfazProveedorView:
         self.btn_editar.place(x=20, y=540, width=160, height=40)
 
         if self.proveedor.estado == 2:
-            self.btn_eliminar = tk.Button(self.root, text="Activar Proveedor", bg="green", fg="white",
+            self.btn_eliminar = tk.Button(self.content_frame, text="Activar Proveedor", bg="green", fg="white",
                                           command=self.activar_proveedor)
         else:
-            self.btn_eliminar = tk.Button(self.root, text="Eliminar Proveedor", bg="red", fg="white",
+            self.btn_eliminar = tk.Button(self.content_frame, text="Eliminar Proveedor", bg="red", fg="white",
                                           command=self.eliminar_proveedor)
         self.btn_eliminar.place(x=200, y=540, width=160, height=40)
 
-        self.btn_volver = tk.Button(self.root, text="Volver", command=self.cerrar)
+        self.btn_volver = tk.Button(self.content_frame, text="Volver", command=self.cerrar)
         self.btn_volver.place(x=380, y=540, width=80, height=40)
         self.root.after_idle(self.btn_start.focus_set)
+        self.root.after_idle(self._ajustar_altura_contenido)
 
     def toggle_camara(self):
         if self.capturando:
@@ -230,6 +235,7 @@ class admin_InterfazProveedorView:
         if self.model:
             try:
                 results = self.model(frame, imgsz=256, verbose=False)
+                self._reportar_prediccion(results)
                 annotated_frame = results[0].plot()
                 frame_to_display = annotated_frame
                 annotated = True
@@ -286,6 +292,8 @@ class admin_InterfazProveedorView:
         self.lbl_camara.image = None
         self.imagen_camara = None
         self.fps_var.set("FPS: --.-")
+        self._ultima_prediccion = None
+        self._ultima_prediccion_ts = 0.0
         self.restaurar_boton_start()
 
     def restaurar_boton_start(self):
@@ -341,7 +349,7 @@ class admin_InterfazProveedorView:
         self.entry_nombre.focus_set()
 
         self.btn_editar.config(text="💾 Guardar", command=self.guardar_cambios)
-        self.btn_cancelar = tk.Button(self.root, text="❌ Cancelar", bg="gray", fg="white",
+        self.btn_cancelar = tk.Button(self.content_frame, text="❌ Cancelar", bg="gray", fg="white",
                                       command=self.cancelar_edicion)
         self.btn_cancelar.place(x=560, y=410, width=100, height=40)
 
@@ -421,3 +429,103 @@ class admin_InterfazProveedorView:
         except tk.TclError:
             pass
         self.root.focus_force()
+
+    def _crear_area_desplazable(self):
+        self.canvas = tk.Canvas(self.root, bg=self.colores["fondo"], highlightthickness=0)
+        self.scrollbar = tk.Scrollbar(self.root, orient="vertical", command=self.canvas.yview)
+        self.canvas.configure(yscrollcommand=self.scrollbar.set)
+
+        self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        self.content_frame = tk.Frame(self.canvas, bg=self.colores["fondo"])
+        self._canvas_window = self.canvas.create_window((0, 0), window=self.content_frame, anchor="nw")
+
+        self.content_frame.bind("<Configure>", self._actualizar_scrollregion)
+        self.canvas.bind("<Configure>", self._sincronizar_ancho_contenido)
+        self.canvas.bind("<MouseWheel>", self._on_mousewheel)
+        self.canvas.bind("<Button-4>", self._on_mousewheel)
+        self.canvas.bind("<Button-5>", self._on_mousewheel)
+
+    def _actualizar_scrollregion(self, _event):
+        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+
+    def _sincronizar_ancho_contenido(self, event):
+        self.canvas.itemconfigure(self._canvas_window, width=event.width)
+
+    def _on_mousewheel(self, event):
+        delta = getattr(event, "delta", 0)
+        if delta:
+            pasos = int(-1 * (delta / 120))
+            if pasos != 0:
+                self.canvas.yview_scroll(pasos, "units")
+        elif event.num == 4:
+            self.canvas.yview_scroll(-1, "units")
+        elif event.num == 5:
+            self.canvas.yview_scroll(1, "units")
+
+    def _ajustar_altura_contenido(self):
+        if not hasattr(self, "content_frame"):
+            return
+        self.content_frame.update_idletasks()
+        widgets = self.content_frame.winfo_children()
+        if not widgets:
+            return
+        max_y = max(widget.winfo_y() + widget.winfo_height() for widget in widgets)
+        self.content_frame.configure(height=max_y + 40)
+
+    def _reportar_prediccion(self, results, origen="[Clasificación][Admin]"):
+        if not results:
+            return
+
+        result = results[0]
+        nombre = None
+        confianza = None
+
+        def _nombre_clase(resultado, indice):
+            nombres = getattr(resultado, "names", {}) or {}
+            indice_entero = int(indice)
+            if isinstance(nombres, dict):
+                return nombres.get(indice_entero, str(indice_entero))
+            if isinstance(nombres, (list, tuple)):
+                if 0 <= indice_entero < len(nombres):
+                    return nombres[indice_entero]
+            return str(indice_entero)
+
+        probs = getattr(result, "probs", None)
+        if probs is not None and getattr(probs, "top1", None) is not None:
+            nombre = _nombre_clase(result, probs.top1)
+            top_conf = getattr(probs, "top1conf", None)
+            if top_conf is not None:
+                confianza = float(top_conf)
+        else:
+            boxes = getattr(result, "boxes", None)
+            conf_tensor = getattr(boxes, "conf", None) if boxes is not None else None
+            cls_tensor = getattr(boxes, "cls", None) if boxes is not None else None
+            if conf_tensor is not None and cls_tensor is not None:
+                try:
+                    conf_list = conf_tensor.tolist()
+                    cls_list = cls_tensor.tolist()
+                except AttributeError:
+                    conf_list = list(conf_tensor)
+                    cls_list = list(cls_tensor)
+                if conf_list:
+                    idx_max = max(range(len(conf_list)), key=lambda i: conf_list[i])
+                    confianza = float(conf_list[idx_max])
+                    nombre = _nombre_clase(result, cls_list[idx_max])
+
+        if nombre is None or confianza is None:
+            return
+
+        registro = (nombre, round(confianza, 4))
+        now = time.time()
+
+        if self._ultima_prediccion == registro and now - self._ultima_prediccion_ts < 2.0:
+            return
+
+        if now - self._ultima_prediccion_ts < 2.0:
+            return
+
+        self._ultima_prediccion = registro
+        self._ultima_prediccion_ts = now
+        print(f"{origen} Resultado más probable: {nombre} ({confianza:.1%})", flush=True)
