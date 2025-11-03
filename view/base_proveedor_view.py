@@ -27,6 +27,7 @@ class BaseProveedorView:
         self.root.resizable(False, False)
         self.colores = obtener_colores()
         self.crear_widgets()
+        self.establecer_foco_inicial()
 
     def crear_widgets(self):
         # Top frame
@@ -116,6 +117,7 @@ class BaseProveedorView:
         )
         entry_buscar.insert(0, "Buscar...")
         entry_buscar.pack(side=tk.LEFT, padx=10, pady=5, fill=tk.X, expand=True)
+        self.entry_buscar = entry_buscar
 
         def on_entry_click(event):
             if entry_buscar.get() == "Buscar...":
@@ -181,6 +183,13 @@ class BaseProveedorView:
         self.tree.pack(fill=tk.BOTH, expand=True)
         self.actualizar_lista()
 
+    def establecer_foco_inicial(self):
+        def _focus():
+            try:
+                self.entry_nombre.focus_set()
+            except tk.TclError:
+                pass
+        self.root.after_idle(_focus)
 
     def _bloquear_formulario(self):
         self.entry_nombre.config(state="disabled")
@@ -226,6 +235,9 @@ class BaseProveedorView:
                 self.rut_widget.set_rut("")
                 self.entry_contacto.delete(0, tk.END)
                 self.actualizar_lista()
+                self.establecer_foco_inicial()
+            else:
+                messagebox.showerror("Error", "No se pudo registrar el proveedor.")
         else:
             messagebox.showwarning(
                 "Autorización requerida",
@@ -348,7 +360,16 @@ class BaseProveedorView:
     def more_proveedores(self):
         self.pedir_credenciales_supervisor("Activar Modo Supervisor", lambda user: self.mostrar_modo_supervisor())
 
-
+    def cerrar_sesion(self):
+        self.usuario_activo = None
+        if self.btn_logout:
+            self.btn_logout.destroy()
+            self.btn_logout = None
+        if self.btn_sup:
+            self.btn_sup.config(state="normal", text="Modo Supervisor")
+        messagebox.showinfo("Sesión cerrada", "Has salido del modo supervisor.")
+        self.actualizar_lista()
+        self.establecer_foco_inicial()
 
     def mostrar_modo_supervisor(self):
         self.supervisor_activo = True
@@ -364,6 +385,7 @@ class BaseProveedorView:
             self.btn_sup.config(state="disabled", text="Supervisor activo")
 
         self.actualizar_lista()
+        self.establecer_foco_inicial()
 
 
     def _pedir_autorizacion_supervisor(self, nombre, rut_limpio, contacto):
@@ -403,13 +425,42 @@ class BaseProveedorView:
             if user and user.rol == 1:
                 self.usuario_activo = user
                 messagebox.showinfo("Éxito", "Supervisor autenticado.")
-                login_win.destroy()
+                cerrar_modal()
                 callback(user)
             else:
                 messagebox.showerror("Error", "Credenciales inválidas.")
+                rut_entry.focus_force()
 
         tk.Button(login_win, text="Ingresar", bg=self.colores["boton"],
                   fg=self.colores["boton_texto"], command=autenticar).pack(pady=10)
+        cerrar_modal = self._configurar_modal(login_win, rut_entry)
+
+    def configurar(self):
+        messagebox.showinfo("Configuración", "Aquí abrirías las configuraciones del sistema.")
+
+    def _configurar_modal(self, window, focus_widget=None):
+        window.transient(self.root)
+        window.grab_set()
+        window.focus_force()
+
+        def restaurar_foco():
+            try:
+                window.grab_release()
+            except tk.TclError:
+                pass
+            if window.winfo_exists():
+                window.destroy()
+            self.establecer_foco_inicial()
+
+        def _on_close():
+            restaurar_foco()
+
+        window.protocol("WM_DELETE_WINDOW", _on_close)
+
+        if focus_widget is not None:
+            window.after_idle(focus_widget.focus_set)
+
+        return restaurar_foco
 
 
     def iniciar_proceso_dos_proveedores(self):
