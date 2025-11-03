@@ -1,12 +1,14 @@
-from db.setup_db import conectar
-from models.DTO.proveedor_dto import ProveedorDTO  # Importa la clase ProveedorDTO.
-
+from db.setup_db import connect
+from models.DTO.proveedor_dto import ProveedorDTO  
 class ProveedorDAO:
     @staticmethod
     def obtener_por_id(proveedor_id):
-        conn = conectar()
+        conn = connect()
         cursor = conn.cursor()
-        cursor.execute("SELECT id_proveedor, nombre, rut, contacto, estado FROM proveedores WHERE id_proveedor = ?", (proveedor_id,))
+        cursor.execute(
+            "SELECT supplier_id, name, rut, contact, status FROM suppliers WHERE supplier_id = ?",
+            (proveedor_id,)
+        )
         row = cursor.fetchone()
         conn.close()
         if row:
@@ -15,9 +17,9 @@ class ProveedorDAO:
 
     @staticmethod
     def obtener_todos():
-        conn = conectar()
+        conn = connect()
         cursor = conn.cursor()
-        cursor.execute("SELECT id_proveedor, nombre, rut, contacto, estado FROM proveedores")
+        cursor.execute("SELECT supplier_id, name, rut, contact, status FROM suppliers")
         rows = cursor.fetchall()
         conn.close()
         return [ProveedorDTO(*r) for r in rows]
@@ -25,10 +27,10 @@ class ProveedorDAO:
     @staticmethod
     def insertar(nombre, rut, contacto):
         try:
-            conn = conectar()
+            conn = connect()
             cursor = conn.cursor()
             cursor.execute(
-                "INSERT INTO proveedores (nombre, rut, contacto, estado) VALUES (?, ?, ?, 1)",  # Estado activo por defecto
+                "INSERT INTO suppliers (name, rut, contact, status) VALUES (?, ?, ?, 1)",  # status activo por defecto
                 (nombre, rut, contacto)
             )
             conn.commit()
@@ -42,10 +44,10 @@ class ProveedorDAO:
     @staticmethod
     def actualizar(proveedor_id, nombre, rut, contacto):
         try:
-            conn = conectar()
+            conn = connect()
             cursor = conn.cursor()
             cursor.execute(
-                "UPDATE proveedores SET nombre = ?, rut = ?, contacto = ? WHERE id_proveedor = ?",
+                "UPDATE suppliers SET name = ?, rut = ?, contact = ? WHERE supplier_id = ?",
                 (nombre, rut, contacto, proveedor_id)
             )
             conn.commit()
@@ -59,10 +61,10 @@ class ProveedorDAO:
     @staticmethod
     def actualizar_estado(proveedor_id, nuevo_estado):
         try:
-            conn = conectar()
+            conn = connect()
             cursor = conn.cursor()
             cursor.execute(
-                "UPDATE proveedores SET estado = ? WHERE id_proveedor = ?",
+                "UPDATE suppliers SET status = ? WHERE supplier_id = ?",
                 (nuevo_estado, proveedor_id)
             )
             conn.commit()
@@ -85,36 +87,36 @@ class ProveedorDAO:
 
     @staticmethod
     def existe_rut(rut):
-        conn = conectar()
+        conn = connect()
         cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM proveedores WHERE rut = ?", (rut,))
+        cursor.execute("SELECT COUNT(*) FROM suppliers WHERE rut = ?", (rut,))
         count = cursor.fetchone()[0]
         conn.close()
         return count > 0
 
     @staticmethod
     def existe_contacto(contacto):
-        conn = conectar()
+        conn = connect()
         cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM proveedores WHERE contacto = ?", (contacto,))
+        cursor.execute("SELECT COUNT(*) FROM suppliers WHERE contact = ?", (contacto,))
         count = cursor.fetchone()[0]
         conn.close()
         return count > 0
 
     @staticmethod
     def obtener_activos():
-        conn = conectar()
+        conn = connect()
         cursor = conn.cursor()
-        cursor.execute("SELECT id_proveedor, nombre, rut, contacto, estado FROM proveedores WHERE estado = 1")
+        cursor.execute("SELECT supplier_id, name, rut, contact, status FROM suppliers WHERE status = 1")
         rows = cursor.fetchall()
         conn.close()
         return [ProveedorDTO(*r) for r in rows]
 
     @staticmethod
     def obtener_inactivos():
-        conn = conectar()
+        conn = connect()
         cursor = conn.cursor()
-        cursor.execute("SELECT id_proveedor, nombre, rut, contacto, estado FROM proveedores WHERE estado = 2")
+        cursor.execute("SELECT supplier_id, name, rut, contact, status FROM suppliers WHERE status = 2")
         rows = cursor.fetchall()
         conn.close()
         return [ProveedorDTO(*r) for r in rows]

@@ -98,3 +98,15 @@ def obtener_colores():
         "tabla_seleccion": "#D6A86D",
         "texto_seleccion": "#000000",
     }
+
+
+
+def solo_numeros(P):
+    """Valida que el valor sea numérico (float) o vacío."""
+    if P == "":
+        return True
+    try:
+        float(P)
+        return True
+    except ValueError:
+        return False

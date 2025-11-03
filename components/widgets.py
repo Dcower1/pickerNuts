@@ -69,3 +69,8 @@ class RutEntry(tk.Frame):
     def focus(self):
         """Compatibilidad con llamados genéricos a focus()."""
         self.focus_set()
+    def disable(self):
+        self.entry.config(state="disabled")
+
+    def enable(self):
+        self.entry.config(state="normal")

@@ -24,6 +24,7 @@ class admin_InterfazProveedorView:
         self.proveedor = proveedor_dto
         self.callback_actualizar = callback_actualizar
         self.editando = False
+        self.produccion_activa = False
 
         self.colores = COLORS
         self.root = tk.Toplevel()
