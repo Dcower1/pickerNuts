@@ -110,3 +110,56 @@ def solo_numeros(P):
         return True
     except ValueError:
         return False
+
+
+def aplicar_fullscreen(ventana, fullscreen=True):
+    """
+    Intenta poner una ventana en modo fullscreen de manera segura, con fallbacks.
+    Si fullscreen=False, revierte el modo fullscreen cuando es posible.
+    """
+    if ventana is None:
+        return
+
+    try:
+        ventana.update_idletasks()
+    except tk.TclError:
+        return
+
+    if fullscreen:
+        aplicado = False
+        try:
+            ventana.attributes("-fullscreen", True)
+            aplicado = True
+        except tk.TclError:
+            aplicado = False
+
+        if not aplicado:
+            try:
+                ventana.state("zoomed")
+                aplicado = True
+            except tk.TclError:
+                aplicado = False
+
+        if not aplicado:
+            try:
+                screen_w = ventana.winfo_screenwidth()
+                screen_h = ventana.winfo_screenheight()
+                ventana.geometry(f"{screen_w}x{screen_h}+0+0")
+                aplicado = True
+            except tk.TclError:
+                aplicado = False
+
+        if aplicado:
+            try:
+                ventana.focus_force()
+            except tk.TclError:
+                pass
+    else:
+        try:
+            ventana.attributes("-fullscreen", False)
+        except tk.TclError:
+            pass
+        try:
+            ventana.state("normal")
+        except tk.TclError:
+            pass

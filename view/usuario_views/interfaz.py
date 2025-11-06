@@ -12,6 +12,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from components.utils import obtener_colores
 from components import utils
 from components.camara import seleccionar_backend
+from components.config import FULLSCREEN
 
 MODEL_PATH = Path(__file__).resolve().parents[2] / "models" / "DAO" / "NutPickerModel.pt"
 PREVIEW_SIZE = (200, 200)
@@ -43,8 +44,11 @@ class InterfazView:
     def construir_interfaz(self):
         self.root.title("Interfaz Clasificación")
         self.root.configure(bg=self.colores["fondo"])
-        self.root.geometry("800x600")
-        utils.centrar_ventana(self.root, 800, 600)
+        if FULLSCREEN:
+            utils.aplicar_fullscreen(self.root)
+        else:
+            self.root.geometry("780x560")
+            utils.centrar_ventana(self.root, 780, 560)
 
         # --- Cámara ---
         frame_camara = tk.LabelFrame(
@@ -53,7 +57,7 @@ class InterfazView:
             bg=self.colores["form_bg"],
             fg=self.colores["texto"],
         )
-        frame_camara.place(x=20, y=20, width=260, height=260)
+        frame_camara.place(x=20, y=20, width=240, height=240)
         self.frame_camara = frame_camara
 
         self.lbl_camara = tk.Label(
@@ -86,7 +90,7 @@ class InterfazView:
             bg=self.colores["form_bg"],
             fg=self.colores["texto"],
         )
-        frame_ficha.place(x=300, y=20, width=470, height=120)
+        frame_ficha.place(x=280, y=20, width=460, height=130)
 
         tk.Label(
             frame_ficha,
@@ -113,7 +117,7 @@ class InterfazView:
             font=("Segoe UI", 12, "bold"),
             command=self.toggle_camara,
         )
-        self.btn_start.place(x=320, y=170, width=120, height=45)
+        self.btn_start.place(x=280, y=170, width=120, height=45)
 
         # --- Botón Reporte ---
         btn_reporte = tk.Button(
@@ -122,7 +126,7 @@ class InterfazView:
             bg=self.colores["boton"],
             fg=self.colores["boton_texto"],
         )
-        btn_reporte.place(x=470, y=170, width=100, height=40)
+        btn_reporte.place(x=420, y=170, width=100, height=40)
 
         # --- Total Clasificaciones ---
         frame_totales = tk.LabelFrame(
@@ -131,7 +135,7 @@ class InterfazView:
             bg=self.colores["form_bg"],
             fg=self.colores["texto"],
         )
-        frame_totales.place(x=20, y=300, width=480, height=180)
+        frame_totales.place(x=20, y=280, width=460, height=170)
 
         datos = [17.5, 27.5, 57.5, 77.5]
         etiquetas = ["Mariposa", "Cuarto", "Cuartillo", "Desecho"]
@@ -140,7 +144,7 @@ class InterfazView:
             frame_totales.grid_columnconfigure(col, weight=1)
 
         for i, (valor, label) in enumerate(zip(datos, etiquetas)):
-            fig, ax = plt.subplots(figsize=(1.5, 1.5), dpi=80)
+            fig, ax = plt.subplots(figsize=(1.3, 1.3), dpi=80)
             ax.pie(
                 [valor, 100 - valor],
                 labels=[f"{valor}%", ""],
@@ -159,7 +163,7 @@ class InterfazView:
             bg=self.colores["form_bg"],
             fg=self.colores["texto"],
         )
-        frame_producto.place(x=520, y=300, width=250, height=120)
+        frame_producto.place(x=500, y=280, width=240, height=120)
 
         tk.Label(
             frame_producto,
@@ -185,7 +189,7 @@ class InterfazView:
             bg=self.colores["form_bg"],
             fg=self.colores["texto"],
         )
-        frame_historial.place(x=520, y=440, width=250, height=120)
+        frame_historial.place(x=500, y=420, width=240, height=120)
 
         fechas = ["06-06-2025", "06-02-2025", "06-03-2025", "06-04-2025"]
         for f in fechas:
@@ -193,7 +197,7 @@ class InterfazView:
 
         # --- Botón Volver ---
         self.btn_volver = tk.Button(self.content_frame, text="Volver", command=self.cerrar)
-        self.btn_volver.place(x=30, y=540, width=80, height=35)
+        self.btn_volver.place(x=30, y=500, width=80, height=35)
         self.root.after_idle(self.btn_start.focus_set)
         self.root.after_idle(self._ajustar_altura_contenido)
 

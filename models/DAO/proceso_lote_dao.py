@@ -116,3 +116,44 @@ class ProcesoLoteDAO:
 
         conn.close()
         return sorted(fechas_ind + fechas_dob)  # Orden cronológico
+
+    @staticmethod
+    def registrar_clasificacion(proveedor_id, grade, fecha=None):
+        if grade not in ("A", "B", "C", "D"):
+            raise ValueError("grade debe ser uno de A, B, C o D")
+
+        if fecha is None:
+            fecha = datetime.date.today().isoformat()
+
+        conn = ProcesoLoteDAO.conectar()
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT classification_id FROM classifications WHERE supplier_id = ? AND date = ?",
+                (proveedor_id, fecha),
+            )
+            row = cursor.fetchone()
+
+            if row:
+                classification_id = row[0]
+            else:
+                cursor.execute(
+                    "INSERT INTO classifications (supplier_id, date, total_nuts) VALUES (?, ?, ?)",
+                    (proveedor_id, fecha, 0),
+                )
+                classification_id = cursor.lastrowid
+
+            cursor.execute(
+                "INSERT INTO classification_details (classification_id, grade) VALUES (?, ?)",
+                (classification_id, grade),
+            )
+            cursor.execute(
+                "UPDATE classifications SET total_nuts = total_nuts + 1 WHERE classification_id = ?",
+                (classification_id,),
+            )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()

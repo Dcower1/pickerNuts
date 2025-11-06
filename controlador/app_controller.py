@@ -1,18 +1,15 @@
-from view import login # Importa los módulos login y proveedor de las vistas.
-from db.setup_db import crear_tablas# Importa el módulo bd para la base de datos.
 import tkinter as tk
 
-from view.usuario_views import proveedor # Importa la librería Tkinter.
+from db.setup_db import create_tables
+from view.usuario_views.proveedor import ProveedorView
+
 
 def iniciar_app():
-    crear_tablas()
+    """
+    Punto de entrada alternativo para lanzar la aplicación sin pasar por main.py.
+    Se asegura de crear la base de datos y reutiliza la vista actualizada de Proveedor.
+    """
+    create_tables()
     root = tk.Tk()
-
-    def on_login_success():
-        root.destroy()  # Cierra la ventana de login
-        nuevo_root = tk.Tk()
-        proveedor.ProveedorView(nuevo_root)
-        nuevo_root.mainloop()
-
-    login.LoginView(root, on_login_success=on_login_success)
+    ProveedorView(root, usuario_activo=None)
     root.mainloop()
