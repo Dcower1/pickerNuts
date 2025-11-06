@@ -237,7 +237,7 @@ class BaseProveedorView:
             return
 
         if self.supervisor_activo:
-            if ProveedorDAO.insertar(nombre, rut_limpio, contacto):
+            if ProveedorDAO.insertar(nombre, rut_limpio, contacto, self.usuario_activo.id_user if self.usuario_activo else None):
                 self._mostrar_info("Éxito", "Proveedor registrado (Supervisor activo).", focus_widget=self.entry_nombre)
                 self.entry_nombre.delete(0, tk.END)
                 self.rut_widget.set_rut("")

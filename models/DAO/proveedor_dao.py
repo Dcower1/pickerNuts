@@ -25,13 +25,13 @@ class ProveedorDAO:
         return [ProveedorDTO(*r) for r in rows]
 
     @staticmethod
-    def insertar(nombre, rut, contacto):
+    def insertar(nombre, rut, contacto, created_by):
         try:
             conn = connect()
             cursor = conn.cursor()
             cursor.execute(
-                "INSERT INTO suppliers (name, rut, contact, status) VALUES (?, ?, ?, 1)",  # status activo por defecto
-                (nombre, rut, contacto)
+                "INSERT INTO suppliers (name, rut, contact, status, created_by) VALUES (?, ?, ?, 1, ?)",
+                (nombre, rut, contacto, created_by)
             )
             conn.commit()
             return True
@@ -40,7 +40,6 @@ class ProveedorDAO:
             return False
         finally:
             conn.close()
-
     @staticmethod
     def actualizar(proveedor_id, nombre, rut, contacto):
         try:
