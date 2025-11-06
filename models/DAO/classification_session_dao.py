@@ -127,3 +127,31 @@ class ClassificationSessionDAO:
             supplier_id=supplier_id,
             started_at=started_at,
         )
+
+    @staticmethod
+    def obtener_totales_proveedor(supplier_id: int) -> tuple[Dict[str, int], int]:
+        counts = {"A": 0, "B": 0, "C": 0, "D": 0}
+        total = 0
+        conn = get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                """
+                SELECT cd.grade, COUNT(*)
+                FROM classification_details cd
+                JOIN classifications c ON cd.classification_id = c.classification_id
+                WHERE c.supplier_id = ?
+                GROUP BY cd.grade
+                """,
+                (supplier_id,),
+            )
+            for grade, cantidad in cursor.fetchall():
+                if not grade:
+                    continue
+                clave = str(grade).strip().upper()
+                if clave in counts:
+                    counts[clave] = int(cantidad)
+            total = sum(counts.values())
+        finally:
+            conn.close()
+        return counts, total

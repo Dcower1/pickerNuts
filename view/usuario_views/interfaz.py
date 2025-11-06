@@ -31,6 +31,12 @@ CLASS_MAPPING = {
     "descarte": ("D", "Discard"),
     "discard": ("D", "Discard"),
 }
+CATEGORY_CONFIG = {
+    "A": {"label": "Butterfly", "color": "#5DADE2"},
+    "B": {"label": "Quarter", "color": "#58D68D"},
+    "C": {"label": "Half-Quarter", "color": "#F7DC6F"},
+    "D": {"label": "Discard", "color": "#EC7063"},
+}
 
 class InterfazView:
     def __init__(self, root, proveedor):
@@ -50,6 +56,9 @@ class InterfazView:
         self._ultima_prediccion = None
         self._ultima_prediccion_ts = 0.0
         self._sesion_clasificacion = None
+        self._categoria_orden = ["A", "B", "C", "D"]
+        self._chart_info = {}
+        self.frame_totales = None
         self.fps_var = tk.StringVar(value="FPS: --.-")
         self._preparar_ventana()
         self._crear_area_desplazable()
@@ -146,30 +155,13 @@ class InterfazView:
         # --- Total Clasificaciones ---
         frame_totales = tk.LabelFrame(
             self.content_frame,
-            text="Total Clasificaciones: XX",
+            text="Total de clasificaciones General: 0",
             bg=self.colores["form_bg"],
             fg=self.colores["texto"],
         )
         frame_totales.place(x=20, y=280, width=460, height=170)
-
-        datos = [17.5, 27.5, 57.5, 77.5]
-        etiquetas = ["Mariposa", "Cuarto", "Cuartillo", "Desecho"]
-
-        for col in range(4):
-            frame_totales.grid_columnconfigure(col, weight=1)
-
-        for i, (valor, label) in enumerate(zip(datos, etiquetas)):
-            fig, ax = plt.subplots(figsize=(1.3, 1.3), dpi=80)
-            ax.pie(
-                [valor, 100 - valor],
-                labels=[f"{valor}%", ""],
-                startangle=90,
-                colors=["#5DADE2", "#EAECEE"],
-                wedgeprops={"linewidth": 0.5, "edgecolor": "white"},
-            )
-            ax.set_title(label, fontsize=8)
-            canvas = FigureCanvasTkAgg(fig, master=frame_totales)
-            canvas.get_tk_widget().grid(row=0, column=i, padx=5, pady=10, sticky="n")
+        self.frame_totales = frame_totales
+        self._crear_graficos_totales(frame_totales)
 
         # --- Producto Selecto ---
         frame_producto = tk.LabelFrame(
@@ -271,6 +263,97 @@ class InterfazView:
         max_y = max(widget.winfo_y() + widget.winfo_height() for widget in widgets)
         self.content_frame.configure(height=max_y + 40)
 
+    def _crear_graficos_totales(self, frame_totales):
+        self._chart_info = {}
+        for col in range(len(self._categoria_orden)):
+            frame_totales.grid_columnconfigure(col, weight=1)
+
+        for idx, categoria in enumerate(self._categoria_orden):
+            config = CATEGORY_CONFIG[categoria]
+            fig, ax = plt.subplots(figsize=(1.3, 1.3), dpi=80)
+            ax.axis("equal")
+            ax.set_title(config["label"], fontsize=8)
+            canvas = FigureCanvasTkAgg(fig, master=frame_totales)
+            canvas.get_tk_widget().grid(row=0, column=idx, padx=5, pady=10, sticky="n")
+            self._chart_info[categoria] = {
+                "ax": ax,
+                "canvas": canvas,
+                "label": config["label"],
+                "color": config["color"],
+            }
+
+        self._actualizar_totales_general()
+
+    def _render_graficos(self, counts, total, es_sesion):
+        if not self.frame_totales or not self._chart_info:
+            return
+
+        counts = {clave: int(counts.get(clave, 0) or 0) for clave in self._categoria_orden}
+        total_calculado = sum(counts.values())
+        if es_sesion and self._sesion_clasificacion is not None:
+            total_calculado = max(total_calculado, int(self._sesion_clasificacion.total_nuts))
+        total_calculado = max(total_calculado, int(total or 0))
+
+        if es_sesion:
+            self.frame_totales.configure(
+                text=f"Total de Clasificaciones de sesión actual: {total_calculado}"
+            )
+        else:
+            self.frame_totales.configure(
+                text=f"Total de Clasificaciones General: {total_calculado}"
+            )
+
+        total_para_grafico = max(total_calculado, 1)
+
+        for categoria in self._categoria_orden:
+            info = self._chart_info[categoria]
+            ax = info["ax"]
+            valor = counts.get(categoria, 0)
+            ax.clear()
+            ax.axis("equal")
+
+            if total_calculado > 0:
+                porcentaje = (valor / total_calculado) * 100 if total_calculado else 0
+                restante = max(total_para_grafico - valor, 0)
+                datos = [valor, restante]
+                if restante == 0:
+                    datos[1] = 0.0001
+                ax.pie(
+                    datos,
+                    startangle=90,
+                    colors=[info["color"], "#EAECEE"],
+                    wedgeprops={"linewidth": 0.5, "edgecolor": "white"},
+                )
+                titulo = f"{info['label']}: {valor} ({porcentaje:.0f}%)"
+            else:
+                ax.pie(
+                    [1],
+                    startangle=90,
+                    colors=["#EAECEE"],
+                    wedgeprops={"linewidth": 0.5, "edgecolor": "white"},
+                )
+                titulo = f"{info['label']}: 0"
+
+            ax.set_title(titulo, fontsize=8)
+            ax.text(0, 0, str(valor), ha="center", va="center", fontsize=9, color="#333333")
+            info["canvas"].draw_idle()
+
+    def _actualizar_graficos_sesion(self):
+        if not self._sesion_clasificacion:
+            return
+        counts = self._sesion_clasificacion.counts
+        total = self._sesion_clasificacion.total_nuts
+        self._render_graficos(counts, total, es_sesion=True)
+
+    def _actualizar_totales_general(self):
+        supplier_id = getattr(self.proveedor, "id_proveedor", 0) or 0
+        if supplier_id:
+            counts, total = ClassificationSessionDAO.obtener_totales_proveedor(int(supplier_id))
+        else:
+            counts = {clave: 0 for clave in self._categoria_orden}
+            total = 0
+        self._render_graficos(counts, total, es_sesion=False)
+
     def _mapear_clase(self, nombre_clase):
         if not nombre_clase:
             return None
@@ -287,11 +370,13 @@ class InterfazView:
                 f"[Clasificación] Sesión iniciada (ID: {self._sesion_clasificacion.classification_id}) para proveedor {supplier_id}.",
                 flush=True,
             )
+            self._actualizar_graficos_sesion()
             return True
         except Exception as exc:
             self._sesion_clasificacion = None
             print(f"[Clasificación] No se pudo iniciar la sesión: {exc}", flush=True)
             messagebox.showerror("Base de datos", f"No se pudo iniciar la sesión de clasificación.\n{exc}")
+            self._actualizar_totales_general()
             return False
 
     def _registrar_detalle_clasificacion(self, categoria, shape):
@@ -303,6 +388,7 @@ class InterfazView:
                 f"[Clasificación] Registrada nuez como '{shape}' (categoría {categoria}). Total actual: {self._sesion_clasificacion.total_nuts}",
                 flush=True,
             )
+            self._actualizar_graficos_sesion()
         except Exception as exc:
             print(f"[Clasificación] Error al registrar detalle: {exc}", flush=True)
 
@@ -319,6 +405,7 @@ class InterfazView:
             print(f"[Clasificación] Error al finalizar la sesión: {exc}", flush=True)
         finally:
             self._sesion_clasificacion = None
+            self._actualizar_totales_general()
 
     def _reportar_prediccion(self, results, origen="[Clasificación][Usuario]"):
         if not results:
