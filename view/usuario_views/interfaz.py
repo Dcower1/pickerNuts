@@ -1,7 +1,8 @@
 from pathlib import Path
+from datetime import datetime
 import time
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import messagebox, ttk
 
 import cv2
 import matplotlib.pyplot as plt
@@ -59,6 +60,14 @@ class InterfazView:
         self._categoria_orden = ["A", "B", "C", "D"]
         self._chart_info = {}
         self.frame_totales = None
+        self.frame_historial = None
+        self.historial_tree = None
+        self.historial_page = 1
+        self.historial_total_pages = 1
+        self.historial_page_size = 6
+        self.lbl_historial_pagina = None
+        self.btn_historial_prev = None
+        self.btn_historial_next = None
         self.fps_var = tk.StringVar(value="FPS: --.-")
         self._preparar_ventana()
         self._crear_area_desplazable()
@@ -190,21 +199,11 @@ class InterfazView:
         ).pack(side=tk.LEFT, padx=10, pady=10)
 
         # --- Historial ---
-        frame_historial = tk.LabelFrame(
-            self.content_frame,
-            text="Historial",
-            bg=self.colores["form_bg"],
-            fg=self.colores["texto"],
-        )
-        frame_historial.place(x=500, y=420, width=240, height=120)
-
-        fechas = ["06-06-2025", "06-02-2025", "06-03-2025", "06-04-2025"]
-        for f in fechas:
-            tk.Label(frame_historial, text=f, bg=self.colores["form_bg"]).pack(anchor="w", padx=10, pady=2)
+        self._crear_historial_ui()
 
         # --- Botón Volver ---
         self.btn_volver = tk.Button(self.content_frame, text="Volver", command=self.cerrar)
-        self.btn_volver.place(x=30, y=500, width=80, height=35)
+        self.btn_volver.place(x=30, y=720, width=110, height=35)
         self.root.after_idle(self.btn_start.focus_set)
         self.root.after_idle(self._ajustar_altura_contenido)
 
@@ -262,6 +261,163 @@ class InterfazView:
             return
         max_y = max(widget.winfo_y() + widget.winfo_height() for widget in widgets)
         self.content_frame.configure(height=max_y + 40)
+
+    # =================== HISTORIAL ===================
+    def _crear_historial_ui(self):
+        self.frame_historial = tk.LabelFrame(
+            self.content_frame,
+            text="Historial de Clasificaciones",
+            bg=self.colores["form_bg"],
+            fg=self.colores["texto"],
+        )
+        self.frame_historial.place(x=20, y=470, width=720, height=230)
+        self.frame_historial.grid_columnconfigure(0, weight=1)
+        self.frame_historial.grid_rowconfigure(0, weight=1)
+
+        columnas = [
+            ("fecha", "Fecha y hora", 150),
+            ("total", "Total nueces", 100),
+            ("mariposa", "Mariposa", 90),
+            ("cuarto", "Cuartos", 80),
+            ("cuartillo", "Cuartillos", 90),
+            ("descarte", "Descartes", 90),
+            ("promedio", "Tamaño promedio", 140),
+        ]
+        self.historial_tree = ttk.Treeview(
+            self.frame_historial,
+            columns=[c[0] for c in columnas],
+            show="headings",
+            height=6,
+        )
+        for nombre, texto, ancho in columnas:
+            self.historial_tree.heading(nombre, text=texto)
+            self.historial_tree.column(nombre, width=ancho, anchor="center", stretch=False)
+        self.historial_tree.grid(row=0, column=0, sticky="nsew", padx=(5, 0), pady=5)
+
+        scroll_y = ttk.Scrollbar(self.frame_historial, orient="vertical", command=self.historial_tree.yview)
+        scroll_x = ttk.Scrollbar(self.frame_historial, orient="horizontal", command=self.historial_tree.xview)
+        self.historial_tree.configure(yscrollcommand=scroll_y.set, xscrollcommand=scroll_x.set)
+        scroll_y.grid(row=0, column=1, sticky="ns", pady=5, padx=(0, 5))
+        scroll_x.grid(row=1, column=0, sticky="ew", padx=5)
+
+        pag_frame = tk.Frame(self.frame_historial, bg=self.colores["form_bg"])
+        pag_frame.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(5, 5))
+        pag_frame.columnconfigure(1, weight=1)
+
+        self.btn_historial_prev = tk.Button(
+            pag_frame, text="◀", width=4, command=lambda: self._cambiar_pagina_historial(-1)
+        )
+        self.btn_historial_prev.grid(row=0, column=0, padx=5)
+
+        self.lbl_historial_pagina = tk.Label(
+            pag_frame,
+            text="Página 1/1",
+            bg=self.colores["form_bg"],
+            fg=self.colores["texto"],
+            font=("Segoe UI", 9, "bold"),
+        )
+        self.lbl_historial_pagina.grid(row=0, column=1, padx=5)
+
+        self.btn_historial_next = tk.Button(
+            pag_frame, text="▶", width=4, command=lambda: self._cambiar_pagina_historial(1)
+        )
+        self.btn_historial_next.grid(row=0, column=2, padx=5)
+
+        self._cargar_historial()
+
+    def _cargar_historial(self):
+        if not self.historial_tree:
+            return
+        supplier_id = getattr(self.proveedor, "id_proveedor", 0) or 0
+        if not supplier_id:
+            self.historial_page = 1
+            self.historial_total_pages = 1
+            self._render_historial_rows([])
+            return
+
+        try:
+            datos = ClassificationSessionDAO.obtener_historial_metrics(
+                int(supplier_id),
+                page=self.historial_page,
+                page_size=self.historial_page_size,
+            )
+        except Exception as exc:
+            print(f"[Historial] Error al consultar la base de datos: {exc}", flush=True)
+            datos = {"rows": [], "page": 1, "total_pages": 1}
+
+        self.historial_page = datos.get("page", 1) or 1
+        self.historial_total_pages = datos.get("total_pages", 1) or 1
+        filas = datos.get("rows") or []
+        self._render_historial_rows(filas)
+
+    def _render_historial_rows(self, filas):
+        if not self.historial_tree:
+            return
+        for child in self.historial_tree.get_children():
+            self.historial_tree.delete(child)
+
+        if not filas:
+            self.historial_tree.insert(
+                "",
+                "end",
+                values=("Sin registros", "", "", "", "", "", ""),
+            )
+        else:
+            for fila in filas:
+                fecha = self._formatear_historial_fecha(fila.get("date"))
+                avg_size = fila.get("avg_size")
+                if isinstance(avg_size, (int, float)):
+                    avg_text = f"{avg_size:.2f}"
+                else:
+                    avg_text = "-"
+                self.historial_tree.insert(
+                    "",
+                    "end",
+                    values=(
+                        fecha,
+                        fila.get("total_nuts", 0),
+                        fila.get("count_A", 0),
+                        fila.get("count_B", 0),
+                        fila.get("count_C", 0),
+                        fila.get("count_D", 0),
+                        avg_text,
+                    ),
+                )
+
+        if self.lbl_historial_pagina:
+            self.lbl_historial_pagina.config(
+                text=f"Página {self.historial_page}/{self.historial_total_pages}"
+            )
+        self._actualizar_controles_historial()
+
+    def _actualizar_controles_historial(self):
+        state_prev = tk.DISABLED if self.historial_page <= 1 else tk.NORMAL
+        state_next = (
+            tk.DISABLED
+            if self.historial_page >= max(self.historial_total_pages, 1)
+            else tk.NORMAL
+        )
+        if self.btn_historial_prev:
+            self.btn_historial_prev.config(state=state_prev)
+        if self.btn_historial_next:
+            self.btn_historial_next.config(state=state_next)
+
+    def _cambiar_pagina_historial(self, desplazamiento):
+        total_paginas = max(self.historial_total_pages, 1)
+        nueva_pagina = min(max(1, self.historial_page + desplazamiento), total_paginas)
+        if nueva_pagina == self.historial_page:
+            return
+        self.historial_page = nueva_pagina
+        self._cargar_historial()
+
+    @staticmethod
+    def _formatear_historial_fecha(fecha_str):
+        if not fecha_str:
+            return "-"
+        try:
+            return datetime.fromisoformat(str(fecha_str)).strftime("%d-%m-%Y %H:%M")
+        except ValueError:
+            return str(fecha_str)
 
     def _crear_graficos_totales(self, frame_totales):
         self._chart_info = {}
@@ -353,6 +509,7 @@ class InterfazView:
             counts = {clave: 0 for clave in self._categoria_orden}
             total = 0
         self._render_graficos(counts, total, es_sesion=False)
+        self._cargar_historial()
 
     def _mapear_clase(self, nombre_clase):
         if not nombre_clase:

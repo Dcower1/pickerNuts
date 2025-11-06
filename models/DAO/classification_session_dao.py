@@ -56,8 +56,16 @@ class ClassificationSession:
         if not self.active:
             return
 
-        total = sum(self.counts.values())
-        self.total_nuts = max(self.total_nuts, total)
+        total_detectado = sum(self.counts.values())
+        total = max(self.total_nuts, total_detectado)
+
+        if total <= 0:
+            self._eliminar_sesion_vacia()
+            self.total_nuts = 0
+            self.active = False
+            return
+
+        self.total_nuts = total
 
         conn = get_connection()
         cursor = conn.cursor()
@@ -98,6 +106,22 @@ class ClassificationSession:
             conn.close()
 
         self.active = False
+
+    def _eliminar_sesion_vacia(self) -> None:
+        """Elimina la clasificación creada si nunca se detectaron nueces."""
+        conn = get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                "DELETE FROM classifications WHERE classification_id = ?",
+                (self.classification_id,),
+            )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
 
 
 class ClassificationSessionDAO:
@@ -155,3 +179,64 @@ class ClassificationSessionDAO:
         finally:
             conn.close()
         return counts, total
+
+    @staticmethod
+    def obtener_historial_metrics(
+        supplier_id: int,
+        page: int = 1,
+        page_size: int = 6,
+    ) -> dict:
+        """Obtiene el historial de métricas almacenado para un proveedor."""
+        if page_size <= 0:
+            page_size = 6
+        page = max(page, 1)
+        total_rows = 0
+        total_pages = 1
+        conn = get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                "SELECT COUNT(*) FROM metrics_history WHERE supplier_id = ?",
+                (supplier_id,),
+            )
+            total_rows = int(cursor.fetchone()[0] or 0)
+            if total_rows > 0:
+                total_pages = max((total_rows + page_size - 1) // page_size, 1)
+                page = min(page, total_pages)
+                offset = (page - 1) * page_size
+            else:
+                page = 1
+                offset = 0
+
+            cursor.execute(
+                """
+                SELECT date, total_nuts, count_A, count_B, count_C, count_D, avg_size
+                FROM metrics_history
+                WHERE supplier_id = ?
+                ORDER BY date DESC
+                LIMIT ? OFFSET ?
+                """,
+                (supplier_id, page_size, offset),
+            )
+            rows = [
+                {
+                    "date": row[0],
+                    "total_nuts": row[1],
+                    "count_A": row[2],
+                    "count_B": row[3],
+                    "count_C": row[4],
+                    "count_D": row[5],
+                    "avg_size": row[6],
+                }
+                for row in cursor.fetchall()
+            ]
+        finally:
+            conn.close()
+
+        return {
+            "rows": rows,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": total_pages,
+            "total_rows": total_rows,
+        }
