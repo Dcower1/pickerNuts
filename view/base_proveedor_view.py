@@ -22,7 +22,10 @@ class BaseProveedorView:
         self.usuario_activo = usuario_activo
         self.supervisor_activo = False
         self.root.title(titulo)
-        utils.centrar_ventana(self.root, 800, 480)
+        if FULLSCREEN:
+            utils.aplicar_fullscreen(self.root)
+        else:
+            utils.centrar_ventana(self.root, 600, 480)
         self.root.configure(bg="#FBE9D0")
         self.root.resizable(False, False)
         self.colores = obtener_colores()
@@ -33,6 +36,11 @@ class BaseProveedorView:
         # Top frame
         self.top_frame = tk.Frame(self.root, bg=self.colores["fondo"])
         self.top_frame.pack(fill=tk.X, padx=10, pady=5)
+
+        self.btn_salir = tk.Button(self.top_frame, text="⏻ Salir", bg=self.colores["boton"],
+                                   fg=self.colores["boton_texto"], font=("Segoe UI", 9, "bold"),
+                                   command=self.cerrar_aplicacion)
+        self.btn_salir.pack(side=tk.RIGHT, padx=5)
 
         self.btn_config = tk.Button(self.top_frame, text="⚙ Configuración", bg=self.colores["boton"],
                                     fg=self.colores["boton_texto"], font=("Segoe UI", 9, "bold"),
@@ -209,39 +217,40 @@ class BaseProveedorView:
         contacto = self.entry_contacto.get().strip()
 
         if not nombre or not rut_limpio or not contacto:
-            messagebox.showwarning("Campos incompletos", "Por favor completa todos los campos.")
+            self._mostrar_warning("Campos incompletos", "Por favor completa todos los campos.", focus_widget=self.entry_nombre)
             return
 
         if not utils.validar_rut(rut_limpio):
-            messagebox.showerror("Error", "RUT inválido.")
+            self._mostrar_error("Error", "RUT inválido.", focus_widget=self.rut_widget)
             return
 
         if not utils.validar_contacto(contacto):
-            messagebox.showerror("Error", "Contacto inválido. Ej: +569xxxxxxxx")
+            self._mostrar_error("Error", "Contacto inválido. Ej: +569xxxxxxxx", focus_widget=self.entry_contacto)
             return
 
         if ProveedorDAO.existe_rut(rut_limpio):
-            messagebox.showerror("Duplicado", "Ya existe un proveedor con ese RUT.")
+            self._mostrar_error("Duplicado", "Ya existe un proveedor con ese RUT.", focus_widget=self.rut_widget)
             return
 
         if ProveedorDAO.existe_contacto(contacto):
-            messagebox.showerror("Duplicado", "Ya existe un proveedor con ese número.")
+            self._mostrar_error("Duplicado", "Ya existe un proveedor con ese número.", focus_widget=self.entry_contacto)
             return
 
         if self.supervisor_activo:
             if ProveedorDAO.insertar(nombre, rut_limpio, contacto):
-                messagebox.showinfo("Éxito", "Proveedor registrado (Supervisor activo).")
+                self._mostrar_info("Éxito", "Proveedor registrado (Supervisor activo).", focus_widget=self.entry_nombre)
                 self.entry_nombre.delete(0, tk.END)
                 self.rut_widget.set_rut("")
                 self.entry_contacto.delete(0, tk.END)
                 self.actualizar_lista()
                 self.establecer_foco_inicial()
             else:
-                messagebox.showerror("Error", "No se pudo registrar el proveedor.")
+                self._mostrar_error("Error", "No se pudo registrar el proveedor.", focus_widget=self.entry_nombre)
         else:
-            messagebox.showwarning(
+            self._mostrar_warning(
                 "Autorización requerida",
-                "Debe activar el modo supervisor antes de registrar un proveedor."
+                "Debe activar el modo supervisor antes de registrar un proveedor.",
+                focus_widget=self.btn_sup
             )
 
     def actualizar_lista(self):
@@ -270,7 +279,7 @@ class BaseProveedorView:
 
         tags = [f"color{i}" for i in range(1, 4)]
 
-        for i, p in enumerate(resultados):  # ✅ usar resultados aquí
+        for i, p in enumerate(resultados):  # usar resultados aquí
             tag = tags[i % len(tags)]
             self.tree.insert("", tk.END,
                 values=(p.id_proveedor, p.nombre, formatear_rut(p.rut), p.contacto),
@@ -281,39 +290,11 @@ class BaseProveedorView:
         raise NotImplementedError("Este método debe ser implementado por la subclase.")
 
     def modo_supervisor(self):
-        """Abre ventana modal para autenticación de supervisor"""
-        login_win = tk.Toplevel(self.root)
-        login_win.title("Activar Modo Supervisor")
-        utils.centrar_ventana(login_win, 300, 200)
-        login_win.configure(bg=self.colores["form_bg"])
-        login_win.resizable(False, False)
-
-        tk.Label(login_win, text="RUT:", bg=self.colores["form_bg"]).pack(pady=5)
-        rut_entry = RutEntry(login_win)
-        rut_entry.pack(pady=5)
-
-
-        tk.Label(login_win, text="Contraseña:", bg=self.colores["form_bg"]).pack(pady=5)
-        entry_pass = tk.Entry(login_win, show="*")
-        entry_pass.pack(pady=5)
-
-        def autenticar():
-            rut = rut_entry.get_rut().strip()
-            password = entry_pass.get().strip()
-
-
-            user = SuperUsuarioDAO.autenticar(rut, password)
-
-            if user and user.rol == 1:  # 1 = supervisor/admin
-                self.usuario_activo = user
-                messagebox.showinfo("Éxito", "Modo Supervisor activado.")
-                login_win.destroy()
-                self.mostrar_modo_supervisor()
-            else:
-                messagebox.showerror("Error", "Credenciales inválidas.")
-
-        tk.Button(login_win, text="Ingresar", bg=self.colores["boton"],
-                fg=self.colores["boton_texto"], command=autenticar).pack(pady=10)
+        """Solicita credenciales y activa el modo supervisor si son válidas."""
+        self.pedir_credenciales_supervisor(
+            "Activar Modo Supervisor",
+            lambda _user: self.mostrar_modo_supervisor(),
+        )
 
     def cerrar_sesion(self):
         # Marcar que no hay supervisor activo
@@ -340,7 +321,18 @@ class BaseProveedorView:
         # Actualizar la lista para reflejar cambios
         self.actualizar_lista()
 
-        messagebox.showinfo("Sesión cerrada", "Has salido del modo supervisor.")
+        self._mostrar_info("Sesión cerrada", "Has salido del modo supervisor.", focus_widget=self.entry_nombre)
+        self.establecer_foco_inicial()
+
+    def cerrar_aplicacion(self):
+        try:
+            self.root.quit()
+        except tk.TclError:
+            pass
+        try:
+            self.root.destroy()
+        except tk.TclError:
+            pass
 
 
 
@@ -348,28 +340,61 @@ class BaseProveedorView:
         self.pedir_credenciales_supervisor("Activar Modo Supervisor", lambda user: self.mostrar_modo_supervisor())
 
     def configurar(self):
-        messagebox.showinfo("Configuración", "Aquí abrirías las configuraciones del sistema.")
+        self._mostrar_info("Configuración", "Aquí abrirías las configuraciones del sistema.", focus_widget=self.btn_config if self.btn_config else self.entry_nombre)
 
-  
+    def _forzar_fullscreen_modal(self, window):
+        if window is None:
+            return
+        utils.aplicar_fullscreen(window, fullscreen=FULLSCREEN)
 
-   #---------------- modo Sup ----------------
+    def _post_popup_focus(self, focus_widget=None):
+        def _focus():
+            targets = []
+            if focus_widget is not None:
+                targets.append(focus_widget)
+            targets.extend([
+                getattr(self, "entry_nombre", None),
+                self.root
+            ])
 
-    def modo_supervisor(self):
-        self.pedir_credenciales_supervisor("Activar Modo Supervisor", lambda user: self.mostrar_modo_supervisor())
+            for target in targets:
+                if not target:
+                    continue
+                try:
+                    if hasattr(target, "winfo_exists") and not target.winfo_exists():
+                        continue
+                except tk.TclError:
+                    continue
 
-    def more_proveedores(self):
-        self.pedir_credenciales_supervisor("Activar Modo Supervisor", lambda user: self.mostrar_modo_supervisor())
+                try:
+                    target.focus_force()
+                    break
+                except tk.TclError:
+                    continue
 
-    def cerrar_sesion(self):
-        self.usuario_activo = None
-        if self.btn_logout:
-            self.btn_logout.destroy()
-            self.btn_logout = None
-        if self.btn_sup:
-            self.btn_sup.config(state="normal", text="Modo Supervisor")
-        messagebox.showinfo("Sesión cerrada", "Has salido del modo supervisor.")
-        self.actualizar_lista()
-        self.establecer_foco_inicial()
+        self.root.after_idle(_focus)
+
+    def _mostrar_mensaje(self, tipo, titulo, mensaje, parent=None, focus_widget=None):
+        parent = parent or self.root
+        funciones = {
+            "info": messagebox.showinfo,
+            "warning": messagebox.showwarning,
+            "error": messagebox.showerror,
+        }
+        func = funciones.get(tipo)
+        if func is None:
+            raise ValueError(f"Tipo de mensaje no soportado: {tipo}")
+        func(titulo, mensaje, parent=parent)
+        self._post_popup_focus(focus_widget)
+
+    def _mostrar_info(self, titulo, mensaje, parent=None, focus_widget=None):
+        self._mostrar_mensaje("info", titulo, mensaje, parent=parent, focus_widget=focus_widget)
+
+    def _mostrar_warning(self, titulo, mensaje, parent=None, focus_widget=None):
+        self._mostrar_mensaje("warning", titulo, mensaje, parent=parent, focus_widget=focus_widget)
+
+    def _mostrar_error(self, titulo, mensaje, parent=None, focus_widget=None):
+        self._mostrar_mensaje("error", titulo, mensaje, parent=parent, focus_widget=focus_widget)
 
     def mostrar_modo_supervisor(self):
         self.supervisor_activo = True
@@ -391,14 +416,14 @@ class BaseProveedorView:
     def _pedir_autorizacion_supervisor(self, nombre, rut_limpio, contacto):
         def callback(user):
             if ProveedorDAO.insertar(nombre, rut_limpio, contacto):
-                messagebox.showinfo("Éxito", "Proveedor registrado con autorización de supervisor.")
+                self._mostrar_info("Éxito", "Proveedor registrado con autorización de supervisor.", focus_widget=self.entry_nombre)
                 self.entry_nombre.delete(0, tk.END)
                 self.rut_widget.clear()
                 self.entry_contacto.delete(0, tk.END)
                 self.actualizar_lista()
                 self.mostrar_modo_supervisor()
             else:
-                messagebox.showerror("Error", "No se pudo registrar el proveedor.")
+                self._mostrar_error("Error", "No se pudo registrar el proveedor.", focus_widget=self.entry_nombre)
 
         self.pedir_credenciales_supervisor("Autorización de Supervisor", callback)
 
@@ -424,21 +449,23 @@ class BaseProveedorView:
 
             if user and user.rol == 1:
                 self.usuario_activo = user
-                messagebox.showinfo("Éxito", "Supervisor autenticado.")
+                self._mostrar_info("Éxito", "Supervisor autenticado.", parent=login_win, focus_widget=rut_entry)
                 cerrar_modal()
                 callback(user)
             else:
-                messagebox.showerror("Error", "Credenciales inválidas.")
-                rut_entry.focus_force()
+                self._mostrar_error("Error", "Credenciales inválidas.", parent=login_win, focus_widget=rut_entry)
 
         tk.Button(login_win, text="Ingresar", bg=self.colores["boton"],
                   fg=self.colores["boton_texto"], command=autenticar).pack(pady=10)
-        cerrar_modal = self._configurar_modal(login_win, rut_entry)
+        cerrar_modal = self._configurar_modal(login_win, rut_entry, focus_after_close=self.entry_nombre, fullscreen=False)
 
     def configurar(self):
-        messagebox.showinfo("Configuración", "Aquí abrirías las configuraciones del sistema.")
+        self._mostrar_info("Configuración", "Aquí abrirías las configuraciones del sistema.", focus_widget=self.btn_config if self.btn_config else self.entry_nombre)
 
-    def _configurar_modal(self, window, focus_widget=None):
+    def _configurar_modal(self, window, focus_widget=None, focus_after_close=None, fullscreen=True):
+        if fullscreen and FULLSCREEN:
+            self._forzar_fullscreen_modal(window)
+
         window.transient(self.root)
         window.grab_set()
         window.focus_force()
@@ -450,7 +477,7 @@ class BaseProveedorView:
                 pass
             if window.winfo_exists():
                 window.destroy()
-            self.establecer_foco_inicial()
+            self._post_popup_focus(focus_after_close)
 
         def _on_close():
             restaurar_foco()
@@ -466,13 +493,14 @@ class BaseProveedorView:
     def iniciar_proceso_dos_proveedores(self):
         proveedores = ProveedorDAO.obtener_activos()
         if len(proveedores) < 2:
-            messagebox.showwarning("Atención", "No hay suficientes proveedores activos.")
+            self._mostrar_warning("Atención", "No hay suficientes proveedores activos.", focus_widget=self.tree)
             return
 
         # Crear nueva ventana
         win = tk.Toplevel(self.root)
         win.title("Seleccionar 2 proveedores")
-        utils.centrar_ventana(win, 800, 480)
+        if not FULLSCREEN:
+            utils.centrar_ventana(win, 600, 480)
         win.configure(bg=self.colores["form_bg"])
         win.resizable(False, False)
 
@@ -494,12 +522,14 @@ class BaseProveedorView:
 
         # Crear checkboxes de proveedores
         var_checks = []
+        checkbox_widgets = []
         for p in proveedores:
             var = tk.IntVar()
             cb = tk.Checkbutton(scroll_frame, text=f"{p.nombre} ({formatear_rut(p.rut)})",
                                 variable=var, bg=self.colores["form_bg"], anchor="w")
             cb.pack(fill=tk.X, padx=5, pady=2)
             var_checks.append((var, p))
+            checkbox_widgets.append(cb)
 
         # Frame para porcentajes
         frame_porcentajes = tk.Frame(win, bg=self.colores["form_bg"])
@@ -534,21 +564,24 @@ class BaseProveedorView:
         for var, _ in var_checks:
             var.trace_add("write", lambda *args: actualizar_labels())
 
+        cerrar_win = self._configurar_modal(win, focus_widget=p1_entry, focus_after_close=self.entry_nombre)
+
         def confirmar():
             seleccionados = [p for var, p in var_checks if var.get() == 1]
             if len(seleccionados) != 2:
-                messagebox.showerror("Error", "Debes seleccionar exactamente 2 proveedores.")
+                foco_check = checkbox_widgets[0] if checkbox_widgets else win
+                self._mostrar_error("Error", "Debes seleccionar exactamente 2 proveedores.", parent=win, focus_widget=foco_check)
                 return
 
             try:
                 porc1 = float(p1_entry.get())
                 porc2 = float(p2_entry.get())
             except ValueError:
-                messagebox.showerror("Error", "Los porcentajes deben ser números.")
+                self._mostrar_error("Error", "Los porcentajes deben ser números.", parent=win, focus_widget=p1_entry)
                 return
 
             if abs(porc1 + porc2 - 100) > 0.01:
-                messagebox.showerror("Error", "La suma de los porcentajes debe ser 100%.")
+                self._mostrar_error("Error", "La suma de los porcentajes debe ser 100%.", parent=win, focus_widget=p1_entry)
                 return
 
             # Guardar proceso en base de datos
@@ -556,25 +589,32 @@ class BaseProveedorView:
                                            seleccionados[1].id_proveedor,
                                            porc1, porc2)
 
-            messagebox.showinfo(
+            self._mostrar_info(
                 "Proceso guardado",
-                f"Proceso registrado con {seleccionados[0].nombre} ({porc1}%) y {seleccionados[1].nombre} ({porc2}%)"
+                f"Proceso registrado con {seleccionados[0].nombre} ({porc1}%) y {seleccionados[1].nombre} ({porc2}%)",
+                parent=win,
+                focus_widget=win
             )
-            win.destroy()
+            cerrar_win()
             self.abrir_interfaz_clasificacion(seleccionados[0], seleccionados[1], porc1, porc2)
 
         tk.Button(win, text="Confirmar", bg=self.colores["boton"], fg=self.colores["boton_texto"],
                   font=("Segoe UI", 9, "bold"), command=confirmar).pack(pady=10)
+
+        tk.Button(win, text="Cerrar", bg=self.colores["boton"], fg=self.colores["boton_texto"],
+                  font=("Segoe UI", 9, "bold"), command=cerrar_win).pack(pady=(0, 10))
 
     def abrir_interfaz_clasificacion(self, prov1, prov2, porc1, porc2):
         try:
             # No hace falta importar aquí, ya lo hicimos arriba
             win_clasificacion = tk.Toplevel(self.root)
             win_clasificacion.title("Clasificación Doble Proveedor")
-            utils.centrar_ventana(win_clasificacion, 800, 480)
+            if not FULLSCREEN:
+                utils.centrar_ventana(win_clasificacion, 600, 480)
             win_clasificacion.resizable(False, False)
+            self._configurar_modal(win_clasificacion, focus_widget=win_clasificacion, focus_after_close=self.entry_nombre)
 
             # Instanciar la interfaz con ambos proveedores
-            InterfazViewDoble(win_clasificacion, [prov1, prov2])
+            InterfazViewDoble(win_clasificacion, [prov1, prov2], porcentajes=(porc1, porc2))
         except Exception as e:
-            messagebox.showerror("Error", f"No se pudo abrir la interfaz: {e}")
+            self._mostrar_error("Error", f"No se pudo abrir la interfaz: {e}", focus_widget=self.entry_nombre)

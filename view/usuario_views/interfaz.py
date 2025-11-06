@@ -12,10 +12,25 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from components.utils import obtener_colores
 from components import utils
 from components.camara import seleccionar_backend
+from components.config import FULLSCREEN
+from models.DAO.classification_session_dao import ClassificationSessionDAO
 
 MODEL_PATH = Path(__file__).resolve().parents[2] / "models" / "DAO" / "NutPickerModel.pt"
 PREVIEW_SIZE = (200, 200)
 COLORS = obtener_colores()
+CLASS_MAPPING = {
+    "mariposa": ("A", "Butterfly"),
+    "butterfly": ("A", "Butterfly"),
+    "cuarto": ("B", "Quarter"),
+    "quarter": ("B", "Quarter"),
+    "cuartillo": ("C", "Half-Quarter"),
+    "half-quarter": ("C", "Half-Quarter"),
+    "half quarter": ("C", "Half-Quarter"),
+    "halfquarter": ("C", "Half-Quarter"),
+    "desecho": ("D", "Discard"),
+    "descarte": ("D", "Discard"),
+    "discard": ("D", "Discard"),
+}
 
 class InterfazView:
     def __init__(self, root, proveedor):
@@ -34,6 +49,7 @@ class InterfazView:
         self.model = self._cargar_modelo()
         self._ultima_prediccion = None
         self._ultima_prediccion_ts = 0.0
+        self._sesion_clasificacion = None
         self.fps_var = tk.StringVar(value="FPS: --.-")
         self._preparar_ventana()
         self._crear_area_desplazable()
@@ -43,8 +59,11 @@ class InterfazView:
     def construir_interfaz(self):
         self.root.title("Interfaz Clasificación")
         self.root.configure(bg=self.colores["fondo"])
-        self.root.geometry("800x600")
-        utils.centrar_ventana(self.root, 800, 600)
+        if FULLSCREEN:
+            utils.aplicar_fullscreen(self.root)
+        else:
+            self.root.geometry("780x560")
+            utils.centrar_ventana(self.root, 780, 560)
 
         # --- Cámara ---
         frame_camara = tk.LabelFrame(
@@ -53,7 +72,7 @@ class InterfazView:
             bg=self.colores["form_bg"],
             fg=self.colores["texto"],
         )
-        frame_camara.place(x=20, y=20, width=260, height=260)
+        frame_camara.place(x=20, y=20, width=240, height=240)
         self.frame_camara = frame_camara
 
         self.lbl_camara = tk.Label(
@@ -86,7 +105,7 @@ class InterfazView:
             bg=self.colores["form_bg"],
             fg=self.colores["texto"],
         )
-        frame_ficha.place(x=300, y=20, width=470, height=120)
+        frame_ficha.place(x=280, y=20, width=460, height=130)
 
         tk.Label(
             frame_ficha,
@@ -113,7 +132,7 @@ class InterfazView:
             font=("Segoe UI", 12, "bold"),
             command=self.toggle_camara,
         )
-        self.btn_start.place(x=320, y=170, width=120, height=45)
+        self.btn_start.place(x=280, y=170, width=120, height=45)
 
         # --- Botón Reporte ---
         btn_reporte = tk.Button(
@@ -122,7 +141,7 @@ class InterfazView:
             bg=self.colores["boton"],
             fg=self.colores["boton_texto"],
         )
-        btn_reporte.place(x=470, y=170, width=100, height=40)
+        btn_reporte.place(x=420, y=170, width=100, height=40)
 
         # --- Total Clasificaciones ---
         frame_totales = tk.LabelFrame(
@@ -131,7 +150,7 @@ class InterfazView:
             bg=self.colores["form_bg"],
             fg=self.colores["texto"],
         )
-        frame_totales.place(x=20, y=300, width=480, height=180)
+        frame_totales.place(x=20, y=280, width=460, height=170)
 
         datos = [17.5, 27.5, 57.5, 77.5]
         etiquetas = ["Mariposa", "Cuarto", "Cuartillo", "Desecho"]
@@ -140,7 +159,7 @@ class InterfazView:
             frame_totales.grid_columnconfigure(col, weight=1)
 
         for i, (valor, label) in enumerate(zip(datos, etiquetas)):
-            fig, ax = plt.subplots(figsize=(1.5, 1.5), dpi=80)
+            fig, ax = plt.subplots(figsize=(1.3, 1.3), dpi=80)
             ax.pie(
                 [valor, 100 - valor],
                 labels=[f"{valor}%", ""],
@@ -159,7 +178,7 @@ class InterfazView:
             bg=self.colores["form_bg"],
             fg=self.colores["texto"],
         )
-        frame_producto.place(x=520, y=300, width=250, height=120)
+        frame_producto.place(x=500, y=280, width=240, height=120)
 
         tk.Label(
             frame_producto,
@@ -185,7 +204,7 @@ class InterfazView:
             bg=self.colores["form_bg"],
             fg=self.colores["texto"],
         )
-        frame_historial.place(x=520, y=440, width=250, height=120)
+        frame_historial.place(x=500, y=420, width=240, height=120)
 
         fechas = ["06-06-2025", "06-02-2025", "06-03-2025", "06-04-2025"]
         for f in fechas:
@@ -193,7 +212,7 @@ class InterfazView:
 
         # --- Botón Volver ---
         self.btn_volver = tk.Button(self.content_frame, text="Volver", command=self.cerrar)
-        self.btn_volver.place(x=30, y=540, width=80, height=35)
+        self.btn_volver.place(x=30, y=500, width=80, height=35)
         self.root.after_idle(self.btn_start.focus_set)
         self.root.after_idle(self._ajustar_altura_contenido)
 
@@ -252,6 +271,55 @@ class InterfazView:
         max_y = max(widget.winfo_y() + widget.winfo_height() for widget in widgets)
         self.content_frame.configure(height=max_y + 40)
 
+    def _mapear_clase(self, nombre_clase):
+        if not nombre_clase:
+            return None
+        clave = str(nombre_clase).strip().lower()
+        return CLASS_MAPPING.get(clave)
+
+    def _iniciar_sesion_clasificacion(self):
+        if self._sesion_clasificacion:
+            return True
+        supplier_id = getattr(self.proveedor, "id_proveedor", 0) or 0
+        try:
+            self._sesion_clasificacion = ClassificationSessionDAO.iniciar_sesion(int(supplier_id))
+            print(
+                f"[Clasificación] Sesión iniciada (ID: {self._sesion_clasificacion.classification_id}) para proveedor {supplier_id}.",
+                flush=True,
+            )
+            return True
+        except Exception as exc:
+            self._sesion_clasificacion = None
+            print(f"[Clasificación] No se pudo iniciar la sesión: {exc}", flush=True)
+            messagebox.showerror("Base de datos", f"No se pudo iniciar la sesión de clasificación.\n{exc}")
+            return False
+
+    def _registrar_detalle_clasificacion(self, categoria, shape):
+        if not self._sesion_clasificacion:
+            return
+        try:
+            self._sesion_clasificacion.registrar_detalle(categoria, shape)
+            print(
+                f"[Clasificación] Registrada nuez como '{shape}' (categoría {categoria}). Total actual: {self._sesion_clasificacion.total_nuts}",
+                flush=True,
+            )
+        except Exception as exc:
+            print(f"[Clasificación] Error al registrar detalle: {exc}", flush=True)
+
+    def _cerrar_sesion_clasificacion(self):
+        if not self._sesion_clasificacion:
+            return
+        try:
+            self._sesion_clasificacion.finalizar()
+            print(
+                f"[Clasificación] Sesión {self._sesion_clasificacion.classification_id} finalizada con total {self._sesion_clasificacion.total_nuts}.",
+                flush=True,
+            )
+        except Exception as exc:
+            print(f"[Clasificación] Error al finalizar la sesión: {exc}", flush=True)
+        finally:
+            self._sesion_clasificacion = None
+
     def _reportar_prediccion(self, results, origen="[Clasificación][Usuario]"):
         if not results:
             return
@@ -307,6 +375,10 @@ class InterfazView:
         self._ultima_prediccion = registro
         self._ultima_prediccion_ts = now
         print(f"{origen} Resultado más probable: {nombre} ({confianza:.1%})", flush=True)
+        mapeo = self._mapear_clase(nombre)
+        if mapeo:
+            categoria, shape = mapeo
+            self._registrar_detalle_clasificacion(categoria, shape)
 
     # =================== CÁMARA ===================
     def toggle_camara(self):
@@ -341,6 +413,9 @@ class InterfazView:
         self.camera_backend = backend
         self._primer_frame_recibido = False
         print(f"[Cámara] Backend seleccionado: {backend.__class__.__name__}", flush=True)
+        if not self._iniciar_sesion_clasificacion():
+            self.restaurar_boton_start()
+            return
         self.capturando = True
         self.btn_start.config(text="DETENER", bg="red", fg="white")
         self.lbl_camara.config(text="Conectando...", image="")
@@ -427,6 +502,7 @@ class InterfazView:
         self.fps_var.set("FPS: --.-")
         self._ultima_prediccion = None
         self._ultima_prediccion_ts = 0.0
+        self._cerrar_sesion_clasificacion()
         self.restaurar_boton_start()
 
     def restaurar_boton_start(self):
