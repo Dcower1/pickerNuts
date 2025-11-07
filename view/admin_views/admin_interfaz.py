@@ -13,7 +13,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from components import utils
 from components.utils import obtener_colores
 from components.camara import seleccionar_backend
-from components.config import FULLSCREEN
+import components.config as app_config
 from models.DAO.proveedor_dao import ProveedorDAO
 from models.DAO.classification_session_dao import ClassificationSessionDAO
 
@@ -52,10 +52,10 @@ class admin_InterfazProveedorView:
         self.root = tk.Toplevel()
         self.root.title("Interfaz Clasificación - ADMIN")
         self.root.configure(bg=self.colores["fondo"])
-        if FULLSCREEN:
+        if app_config.FULLSCREEN:
             utils.aplicar_fullscreen(self.root)
         else:
-            self.root.geometry("780x560")
+            utils.maximizar_ventana(self.root)
         self._preparar_ventana()
 
         self.camera_backend = None
@@ -85,8 +85,8 @@ class admin_InterfazProveedorView:
         self.fps_var = tk.StringVar(value="FPS: --.-")
 
         self._crear_area_desplazable()
-        if not FULLSCREEN:
-            utils.centrar_ventana(self.root, 780, 560)
+        if not app_config.FULLSCREEN:
+            utils.maximizar_ventana(self.root)
         self.root.protocol("WM_DELETE_WINDOW", self.cerrar)
 
         self.construir_interfaz()
@@ -148,11 +148,18 @@ class admin_InterfazProveedorView:
             font=("Segoe UI", 12, "bold"),
             command=self.toggle_camara,
         )
-        self.btn_start.place(x=280, y=170, width=120, height=45)
+        self.btn_start.place(x=270, y=160, width=180, height=60)
 
         # --- Botón Reporte ---
-        btn_reporte = tk.Button(self.content_frame, text="Reporte", bg=self.colores["boton"], fg=self.colores["boton_texto"])
-        btn_reporte.place(x=420, y=170, width=100, height=40)
+        self.btn_reporte = tk.Button(
+            self.content_frame,
+            text="Reporte",
+            bg=self.colores["boton"],
+            fg=self.colores["boton_texto"],
+            font=("Segoe UI", 12, "bold"),
+            command=self._mostrar_aviso_reporte,
+        )
+        self.btn_reporte.place(x=480, y=160, width=180, height=60)
 
         # --- Total Clasificaciones ---
         frame_totales = tk.LabelFrame(self.content_frame, text="Total de clasificaciones General: 0",
@@ -330,6 +337,9 @@ class admin_InterfazProveedorView:
         except tk.TclError:
             pass
         self.root.destroy()
+
+    def _mostrar_aviso_reporte(self):
+        messagebox.showinfo("Reporte", "Solicitud de envio de reporte solicitada")
 
     # ----------------- FUNCIONES ADMIN -----------------
     def eliminar_proveedor(self):

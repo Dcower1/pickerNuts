@@ -163,3 +163,31 @@ def aplicar_fullscreen(ventana, fullscreen=True):
             ventana.state("normal")
         except tk.TclError:
             pass
+
+
+def maximizar_ventana(ventana, offset_top=0, offset_bottom=0, offset_lr=0):
+    """Intenta maximizar una ventana respetando los bordes y dejando espacio para la barra de tareas."""
+    if ventana is None:
+        return
+    try:
+        ventana.update_idletasks()
+    except tk.TclError:
+        return
+
+    try:
+        ventana.state("zoomed")
+        return
+    except tk.TclError:
+        pass
+
+    try:
+        screen_w = ventana.winfo_screenwidth()
+        screen_h = ventana.winfo_screenheight()
+        offset_top = max(0, int(offset_top))
+        offset_bottom = max(0, int(offset_bottom))
+        offset_lr = max(0, int(offset_lr))
+        ancho = max(600, screen_w - offset_lr * 2)
+        alto = max(400, screen_h - offset_top - offset_bottom)
+        ventana.geometry(f"{int(ancho)}x{int(alto)}+{offset_lr}+{offset_top}")
+    except tk.TclError:
+        pass

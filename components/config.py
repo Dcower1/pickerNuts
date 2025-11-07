@@ -20,3 +20,9 @@ IMG_BANNER = "components/img/banner_Nuts.png"
 # Fuentes
 FONT_DEFAULT = ("Segoe UI", 9)
 FONT_BOLD = ("Segoe UI", 9, "bold")
+
+
+def set_fullscreen(enabled: bool) -> None:
+    """Permite alternar el modo de vista de toda la aplicación en tiempo de ejecución."""
+    global FULLSCREEN
+    FULLSCREEN = bool(enabled)

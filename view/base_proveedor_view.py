@@ -11,7 +11,8 @@ from components.widgets import RutEntry
 from components.utils import obtener_colores
 from models.DAO.proceso_lote_dao import ProcesoLoteDAO
 from view.usuario_views.interfazdoble import InterfazViewDoble
-from components.config import SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN, COL_FONDO, IMG_BANNER
+from view.configuracion_view import ConfiguracionView
+import components.config as app_config
 
 img_path = os.path.join("components", "img", "banner_Nuts.png")
 
@@ -22,10 +23,10 @@ class BaseProveedorView:
         self.usuario_activo = usuario_activo
         self.supervisor_activo = False
         self.root.title(titulo)
-        if FULLSCREEN:
+        if app_config.FULLSCREEN:
             utils.aplicar_fullscreen(self.root)
         else:
-            utils.centrar_ventana(self.root, 600, 480)
+            utils.maximizar_ventana(self.root)
         self.root.configure(bg="#FBE9D0")
         self.root.resizable(False, False)
         self.colores = obtener_colores()
@@ -53,6 +54,8 @@ class BaseProveedorView:
         self.btn_sup.pack(side=tk.RIGHT, padx=5)
 
         self.btn_logout = None
+        self._config_view = None
+        self._top_menu_prev_state = {}
 
         # Main frame
         main_frame = tk.Frame(self.root, bg=self.colores["fondo"])
@@ -199,6 +202,54 @@ class BaseProveedorView:
                 pass
         self.root.after_idle(_focus)
 
+    def _centrar_modal(self, ventana, ancho, alto):
+        if ventana is None:
+            return
+
+        def _centrar():
+            try:
+                utils.centrar_ventana(ventana, ancho, alto)
+            except tk.TclError:
+                pass
+
+        try:
+            ventana.after_idle(_centrar)
+        except tk.TclError:
+            _centrar()
+
+    def _on_config_view_closed(self):
+        self._config_view = None
+        self._toggle_top_menu(enabled=True)
+        self._post_popup_focus(self.btn_config if self.btn_config else self.entry_nombre)
+
+    def _toggle_top_menu(self, enabled: bool):
+        botones = [
+            ("btn_salir", self.btn_salir),
+            ("btn_config", self.btn_config),
+            ("btn_sup", self.btn_sup),
+            ("btn_logout", self.btn_logout),
+        ]
+        if not enabled:
+            self._top_menu_prev_state = {}
+            for nombre, boton in botones:
+                if boton is None:
+                    continue
+                try:
+                    self._top_menu_prev_state[nombre] = boton.cget("state")
+                    boton.config(state=tk.DISABLED)
+                except tk.TclError:
+                    continue
+        else:
+            for nombre, boton in botones:
+                if boton is None:
+                    continue
+                estado = self._top_menu_prev_state.get(nombre, "normal")
+                try:
+                    boton.config(state=estado)
+                except tk.TclError:
+                    continue
+            self._top_menu_prev_state = {}
+
     def _bloquear_formulario(self):
         self.entry_nombre.config(state="disabled")
         self.rut_widget.disable()  # <--- ahora correcto
@@ -340,12 +391,21 @@ class BaseProveedorView:
         self.pedir_credenciales_supervisor("Activar Modo Supervisor", lambda user: self.mostrar_modo_supervisor())
 
     def configurar(self):
-        self._mostrar_info("Configuración", "Aquí abrirías las configuraciones del sistema.", focus_widget=self.btn_config if self.btn_config else self.entry_nombre)
+        if self._config_view:
+            self._config_view.focus()
+            return
+        self._toggle_top_menu(enabled=False)
+        self._config_view = ConfiguracionView(
+            self.root,
+            self.colores,
+            on_close=self._on_config_view_closed,
+            puede_gestionar_supervisores=bool(self.usuario_activo),
+        )
 
     def _forzar_fullscreen_modal(self, window):
         if window is None:
             return
-        utils.aplicar_fullscreen(window, fullscreen=FULLSCREEN)
+        utils.aplicar_fullscreen(window, fullscreen=app_config.FULLSCREEN)
 
     def _post_popup_focus(self, focus_widget=None):
         def _focus():
@@ -430,7 +490,7 @@ class BaseProveedorView:
     def pedir_credenciales_supervisor(self, titulo, callback):
         login_win = tk.Toplevel(self.root)
         login_win.title(titulo)
-        utils.centrar_ventana(login_win, 300, 200)
+        self._centrar_modal(login_win, 300, 200)
         login_win.configure(bg=self.colores["form_bg"])
         login_win.resizable(False, False)
 
@@ -459,11 +519,8 @@ class BaseProveedorView:
                   fg=self.colores["boton_texto"], command=autenticar).pack(pady=10)
         cerrar_modal = self._configurar_modal(login_win, rut_entry, focus_after_close=self.entry_nombre, fullscreen=False)
 
-    def configurar(self):
-        self._mostrar_info("Configuración", "Aquí abrirías las configuraciones del sistema.", focus_widget=self.btn_config if self.btn_config else self.entry_nombre)
-
     def _configurar_modal(self, window, focus_widget=None, focus_after_close=None, fullscreen=True):
-        if fullscreen and FULLSCREEN:
+        if fullscreen and app_config.FULLSCREEN:
             self._forzar_fullscreen_modal(window)
 
         window.transient(self.root)
@@ -499,8 +556,10 @@ class BaseProveedorView:
         # Crear nueva ventana
         win = tk.Toplevel(self.root)
         win.title("Seleccionar 2 proveedores")
-        if not FULLSCREEN:
-            utils.centrar_ventana(win, 600, 480)
+        if not app_config.FULLSCREEN:
+            self._centrar_modal(win, 600, 480)
+        else:
+            utils.aplicar_fullscreen(win)
         win.configure(bg=self.colores["form_bg"])
         win.resizable(False, False)
 
@@ -609,8 +668,8 @@ class BaseProveedorView:
             # No hace falta importar aquí, ya lo hicimos arriba
             win_clasificacion = tk.Toplevel(self.root)
             win_clasificacion.title("Clasificación Doble Proveedor")
-            if not FULLSCREEN:
-                utils.centrar_ventana(win_clasificacion, 600, 480)
+            if not app_config.FULLSCREEN:
+                utils.maximizar_ventana(win_clasificacion)
             win_clasificacion.resizable(False, False)
             self._configurar_modal(win_clasificacion, focus_widget=win_clasificacion, focus_after_close=self.entry_nombre)
 
