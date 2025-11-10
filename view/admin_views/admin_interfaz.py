@@ -15,6 +15,8 @@ from components.utils import obtener_colores
 from components.camara import seleccionar_backend
 import components.config as app_config
 from models.DAO.proveedor_dao import ProveedorDAO
+
+#ESto es del claificacion DAO de ahi lo que envia al N8N es el proceso llamado finalizar.
 from models.DAO.classification_session_dao import ClassificationSessionDAO
 
 MODEL_PATH = Path(__file__).resolve().parents[2] / "models" / "DAO" / "NutPickerModel.pt"
@@ -47,6 +49,7 @@ class admin_InterfazProveedorView:
         self.callback_actualizar = callback_actualizar
         self.editando = False
         self.produccion_activa = False
+        self.dao = ClassificationSessionDAO  # guardamos la referencia a la clase DAO
 
         self.colores = COLORS
         self.root = tk.Toplevel()
@@ -149,6 +152,33 @@ class admin_InterfazProveedorView:
             command=self.toggle_camara,
         )
         self.btn_start.place(x=270, y=160, width=180, height=60)
+
+        #ESTOS son los dos botones nuevos 
+
+        # --- Botón Simular Clasificación ---
+        self.btn_simular = tk.Button(
+            self.content_frame,
+            text="Simular Clasificación",
+            bg="#4CAF50",
+            fg="white",
+            font=("Segoe UI", 10, "bold"),
+            command=self.toggle_simulacion
+        )
+        self.btn_simular.place(x=540, y=170, width=180, height=40)
+
+        # --- Botón Insertar Datos ---
+        self.btn_insertar = tk.Button(
+            self.content_frame,
+            text="Insertar Datos",
+            bg="#2196F3",
+            fg="white",
+            font=("Segoe UI", 10, "bold"),
+            command=self.insertar_datos_prueba
+        )
+        self.btn_insertar.place(x=740, y=170, width=160, height=40)
+
+        #---------------------------------------------
+        
 
         # --- Botón Reporte ---
         self.btn_reporte = tk.Button(
@@ -655,6 +685,8 @@ class admin_InterfazProveedorView:
         self.historial_page = nueva_pagina
         self._cargar_historial()
 
+
+    #ESTO VA A UTILSSSSS*********************************************************
     @staticmethod
     def _formatear_historial_fecha(fecha_str):
         if not fecha_str:
@@ -663,6 +695,10 @@ class admin_InterfazProveedorView:
             return datetime.fromisoformat(str(fecha_str)).strftime("%d-%m-%Y %H:%M")
         except ValueError:
             return str(fecha_str)
+        #ESTO VA A UTILSSSSS*********************************************************
+            #ESTO VA A UTILSSSSS*********************************************************
+                #ESTO VA A UTILSSSSS*********************************************************
+                    #ESTO VA A UTILSSSSS*********************************************************
 
     def _crear_graficos_totales(self, frame_totales):
         self._chart_info = {}
@@ -868,3 +904,87 @@ class admin_InterfazProveedorView:
         if mapeo:
             categoria, shape = mapeo
             self._registrar_detalle_clasificacion(categoria, shape)
+
+
+    #Chente estas son las funciones la primera es simplemente el tema de botones
+
+#SE puede eliminar aqui y arriba igual 
+    def toggle_simulacion(self):
+        """Inicia o detiene una simulación del proceso de clasificación."""
+        if not hasattr(self, "simulando"):
+            self.simulando = False
+
+        if not self.simulando:
+            self.simulando = True
+            self.btn_simular.config(text="Detener Simulación", bg="#E53935")
+
+            print("🟢 Simulación iniciada...")
+
+        else:
+            self.simulando = False
+            self.btn_simular.config(text="Simular Clasificación", bg="#4CAF50")
+            print("🔴 Simulación detenida.")
+           
+            
+
+#ESTO es solo lo que inserta los datos de prueba  se puede eliminar 
+    def insertar_datos_prueba(self):
+        """Simula la inserción completa de una sesión de clasificación usando ClassificationSessionDAO."""
+        try:
+            supplier_id = getattr(self.proveedor, "id_proveedor", None) or 0
+            if not supplier_id:
+                print("❌ No hay supplier_id definido. Asigna un proveedor antes de insertar datos de prueba.")
+                return
+
+            print("🧾 Iniciando sesión de clasificación de prueba...")
+            # iniciar sesión (inserta filas en classifications y devuelve objeto ClassificationSession)
+            sesion = self.dao.iniciar_sesion(int(supplier_id))
+
+            # Simular algunos conteos (ejemplo)
+            # Puedes ajustar los números a lo que quieras simular
+            simul_counts = {"A": 120, "B": 80, "C": 30, "D": 10}
+
+            # Registrar detalles: llamamos registrar_detalle N veces por cada categoría
+            for categoria, cantidad in simul_counts.items():
+                # shape puede ser el texto mapeado; usamos el mapping simple
+                shape = {
+                    "A": "Butterfly",
+                    "B": "Quarter",
+                    "C": "Half-Quarter",
+                    "D": "Discard",
+                }.get(categoria, "Unknown")
+                for _ in range(int(cantidad)):
+                    sesion.registrar_detalle(categoria, shape)
+
+            # Finalizar sesión -> inserta en metrics_history
+            sesion.finalizar()
+
+            print("✅ Datos de prueba insertados correctamente en la BD (metrics_history).")
+        except Exception as e:
+            print(f"❌ Error al insertar datos de prueba: {e}", flush=True)
+
+
+
+    def iniciar_proceso_n8n(self):
+        """Envía los datos simulados al flujo de n8n (Webhook Trigger)."""
+        import requests
+        import datetime
+
+        try:
+            url = "https://diegorojas1.app.n8n.cloud/webhook-test/clasificacion-finalizada"
+            data = {
+                "lote_id": 123,
+                "fecha": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "cantidad_nueces": 540,
+                "porcentaje_defectuosas": 3.5,
+                "tiempo_proceso": "02:14:33"
+            }
+
+            response = requests.post(url, json=data)
+            if response.status_code == 200:
+                print("📨 Informe enviado correctamente a n8n ✅")
+            else:
+                print(f"⚠️ Error al enviar informe a n8n ({response.status_code})")
+
+        except Exception as e:
+            print(f"❌ Error de conexión con n8n: {e}")

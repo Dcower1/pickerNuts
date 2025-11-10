@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Dict
-
+import requests
 from db.nuts_db import get_connection
 
 
@@ -52,6 +52,8 @@ class ClassificationSession:
 
         self.counts[categoria] += 1
 
+
+    #ESTO es lo que hace el proceso de enviar al N8N
     def finalizar(self) -> None:
         if not self.active:
             return
@@ -70,21 +72,18 @@ class ClassificationSession:
         conn = get_connection()
         cursor = conn.cursor()
         try:
+            # Actualizar total en la tabla classifications
             cursor.execute(
                 "UPDATE classifications SET total_nuts = ? WHERE classification_id = ?",
                 (self.total_nuts, self.classification_id),
             )
+
+            # Insertar en el historial
             cursor.execute(
                 """
                 INSERT INTO metrics_history (
-                    classification_id,
-                    supplier_id,
-                    date,
-                    total_nuts,
-                    count_A,
-                    count_B,
-                    count_C,
-                    count_D
+                    classification_id, supplier_id, date, total_nuts,
+                    count_A, count_B, count_C, count_D
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
@@ -98,7 +97,37 @@ class ClassificationSession:
                     self.counts.get("D", 0),
                 ),
             )
+
+            # Obtener nombre del proveedor
+            cursor.execute(
+                "SELECT name FROM suppliers WHERE supplier_id = ?",
+                (self.supplier_id,)
+            )
+            supplier_name_row = cursor.fetchone()
+            supplier_name = supplier_name_row[0] if supplier_name_row else f"Proveedor #{self.supplier_id}"
+
             conn.commit()
+
+            # Enviar datos a n8n (con nombre incluido)
+            try:
+                payload = {
+                    "classification_id": self.classification_id,
+                    "supplier_name": supplier_name,  # 👈 Ahora enviamos el nombre
+                    "supplier_id": self.supplier_id,
+                    "total_nuts": self.total_nuts,
+                    "counts": self.counts,
+                }
+
+                requests.post(
+                    "https://diegorojas1.app.n8n.cloud/webhook-test/clasificacion-finalizada",
+                    json=payload,
+                    timeout=5
+                )
+                print(f"📨 Datos enviados correctamente a n8n ✅ ({supplier_name})")
+
+            except Exception as e:
+                print(f"[WARN] No se pudo notificar a n8n: {e}")
+
         except Exception:
             conn.rollback()
             raise
@@ -106,6 +135,7 @@ class ClassificationSession:
             conn.close()
 
         self.active = False
+
 
     def _eliminar_sesion_vacia(self) -> None:
         """Elimina la clasificación creada si nunca se detectaron nueces."""
