@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from PIL import Image, ImageTk
 from ultralytics import YOLO
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-
+from components.arduino_servo import ArduinoServo
 from components.utils import obtener_colores
 from components import utils
 from components.camara import seleccionar_backend
@@ -69,6 +69,8 @@ class InterfazView:
         self.btn_historial_prev = None
         self.btn_historial_next = None
         self.fps_var = tk.StringVar(value="FPS: --.-")
+        self.model = self._cargar_modelo()
+        self.servo = self._crear_servo()
         self._preparar_ventana()
         self._crear_area_desplazable()
         self.construir_interfaz()
@@ -624,6 +626,13 @@ class InterfazView:
         if mapeo:
             categoria, shape = mapeo
             self._registrar_detalle_clasificacion(categoria, shape)
+            
+        if self.servo:
+            try:
+                self.servo.mover(categoria)
+            except Exception as exc:
+                print(f"[Servo] Error al mandar comando: {exc}", flush=True)
+
 
     # =================== CÁMARA ===================
     def toggle_camara(self):
@@ -756,6 +765,11 @@ class InterfazView:
 
     def cerrar(self):
         self.detener_camara()
+        if getattr(self, "servo", None):
+            try:
+                self.servo.close()
+            except Exception as exc:
+                print(f"[Servo] No se pudo cerrar la conexión serial: {exc}", flush=True)
         try:
             self.root.grab_release()
         except tk.TclError:
@@ -787,3 +801,10 @@ class InterfazView:
     def _select_camera_backend(self):
         """Delegar la selección del backend al módulo de cámara compartido."""
         return seleccionar_backend()
+
+    def _crear_servo(self):
+        try:
+            return ArduinoServo(puerto="/dev/ttyUSB0", baud=9600)
+        except Exception as exc:
+            print(f"[Servo] No se pudo abrir el puerto: {exc}", flush=True)
+            return None

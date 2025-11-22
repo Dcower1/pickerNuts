@@ -28,6 +28,7 @@ def create_tables():
             name TEXT NOT NULL,
             rut TEXT NOT NULL UNIQUE,
             contact TEXT,
+            created_by INTEGER NOT NULL,
             status INTEGER NOT NULL CHECK(status IN (1, 2)) DEFAULT 1 -- 1 active, 2 inactive
         )
     ''')
