@@ -1,4 +1,5 @@
 from pathlib import Path
+from collections import Counter, deque
 from datetime import datetime
 import time
 import tkinter as tk
@@ -38,6 +39,11 @@ CATEGORY_CONFIG = {
     "C": {"label": "Half-Quarter", "color": "#F7DC6F"},
     "D": {"label": "Discard", "color": "#EC7063"},
 }
+MIN_PREDICTION_INTERVAL = 0.35  # segundos para evitar duplicados en el mismo cuadro
+STABLE_WINDOW = 8  # frames considerados para mayoría
+STABLE_MIN_COUNT = 5  # mínimo de frames con la misma clase para confirmar
+EVENT_DEBOUNCE_SECONDS = 1.0  # bloqueo entre eventos confirmados
+SHAPE_BY_CATEGORY = {clave: info["label"] for clave, info in CATEGORY_CONFIG.items()}
 
 class InterfazView:
     def __init__(self, root, proveedor):
@@ -56,6 +62,9 @@ class InterfazView:
         self.model = self._cargar_modelo()
         self._ultima_prediccion = None
         self._ultima_prediccion_ts = 0.0
+        self._ventana_categorias = deque(maxlen=STABLE_WINDOW)
+        self._ultima_categoria_confirmada = None
+        self._ultimo_envio_servo_ts = 0.0
         self._sesion_clasificacion = None
         self._categoria_orden = ["A", "B", "C", "D"]
         self._chart_info = {}
@@ -613,23 +622,35 @@ class InterfazView:
         registro = (nombre, round(confianza, 4))
         now = time.time()
 
-        if self._ultima_prediccion == registro and now - self._ultima_prediccion_ts < 2.0:
-            return
-
-        if now - self._ultima_prediccion_ts < 2.0:
+        if self._ultima_prediccion == registro and now - self._ultima_prediccion_ts < MIN_PREDICTION_INTERVAL:
             return
 
         self._ultima_prediccion = registro
         self._ultima_prediccion_ts = now
         print(f"{origen} Resultado más probable: {nombre} ({confianza:.1%})", flush=True)
         mapeo = self._mapear_clase(nombre)
-        if mapeo:
-            categoria, shape = mapeo
-            self._registrar_detalle_clasificacion(categoria, shape)
-            
+        if not mapeo:
+            return
+
+        categoria, shape = mapeo
+        self._ventana_categorias.append(categoria)
+        conteo = Counter(self._ventana_categorias)
+        candidata, ocurrencias = conteo.most_common(1)[0]
+        if ocurrencias < STABLE_MIN_COUNT:
+            return
+
+        if now - self._ultimo_envio_servo_ts < EVENT_DEBOUNCE_SECONDS:
+            return
+
+        shape_candidata = SHAPE_BY_CATEGORY.get(candidata, shape)
+        self._ultima_categoria_confirmada = candidata
+        self._ultimo_envio_servo_ts = now
+        self._ventana_categorias.clear()
+        self._registrar_detalle_clasificacion(candidata, shape_candidata)
+
         if self.servo:
             try:
-                self.servo.mover(categoria)
+                self.servo.mover(candidata)
             except Exception as exc:
                 print(f"[Servo] Error al mandar comando: {exc}", flush=True)
 

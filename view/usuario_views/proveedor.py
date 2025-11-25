@@ -8,6 +8,7 @@ class ProveedorView(BaseProveedorView):
     def __init__(self, root, usuario_activo=None):
         super().__init__(root, "Panel de Proveedores", usuario_activo)
         self.tree.bind("<Double-1>", self.abrir_interfaz_proveedor)
+        print("[EV_TU05] Menú principal iniciado correctamente.", flush=True)
 
     def abrir_interfaz_proveedor(self, event):
         seleccionado = self.tree.selection()
