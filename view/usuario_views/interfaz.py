@@ -1,4 +1,3 @@
-from pathlib import Path
 from collections import Counter, deque
 from datetime import datetime
 import time
@@ -17,7 +16,7 @@ from components.camara import seleccionar_backend
 import components.config as app_config
 from models.DAO.classification_session_dao import ClassificationSessionDAO
 
-MODEL_PATH = Path(__file__).resolve().parents[2] / "models" / "DAO" / "NutPickerModel.pt"
+MODEL_PATH = app_config.MODEL_PATH
 PREVIEW_SIZE = (200, 200)
 COLORS = obtener_colores()
 CLASS_MAPPING = {
@@ -161,17 +160,6 @@ class InterfazView:
             command=self.toggle_camara,
         )
         self.btn_start.place(x=270, y=160, width=180, height=60)
-
-        # --- Botón Reporte ---
-        self.btn_reporte = tk.Button(
-            self.content_frame,
-            text="Reporte",
-            bg=self.colores["boton"],
-            fg=self.colores["boton_texto"],
-            font=("Segoe UI", 12, "bold"),
-            command=self._mostrar_aviso_reporte,
-        )
-        self.btn_reporte.place(x=480, y=160, width=180, height=60)
 
         # --- Total Clasificaciones ---
         frame_totales = tk.LabelFrame(
@@ -563,18 +551,38 @@ class InterfazView:
 
     def _cerrar_sesion_clasificacion(self):
         if not self._sesion_clasificacion:
-            return
+            return None
+        sesion = self._sesion_clasificacion
+        resumen = {
+            "classification_id": getattr(sesion, "classification_id", None),
+            "counts": dict(getattr(sesion, "counts", {}) or {}),
+            "total": getattr(sesion, "total_nuts", 0),
+            "estado": "pendiente",
+            "n8n_notificado": None,
+        }
         try:
-            self._sesion_clasificacion.finalizar()
+            sesion.finalizar()
+            resumen["total"] = getattr(sesion, "total_nuts", resumen["total"])
+            resumen["counts"] = dict(getattr(sesion, "counts", resumen["counts"]) or {})
+            if resumen["total"] > 0 or sum(resumen["counts"].values()) > 0:
+                resumen["estado"] = "finalizada"
+                resumen["n8n_notificado"] = True
+            else:
+                resumen["estado"] = "sin_datos"
+                resumen["n8n_notificado"] = False
             print(
-                f"[Clasificación] Sesión {self._sesion_clasificacion.classification_id} finalizada con total {self._sesion_clasificacion.total_nuts}.",
+                f"[Clasificación] Sesión {sesion.classification_id} finalizada con total {sesion.total_nuts}.",
                 flush=True,
             )
         except Exception as exc:
+            resumen["estado"] = "error"
+            resumen["error"] = str(exc)
+            resumen["n8n_notificado"] = False
             print(f"[Clasificación] Error al finalizar la sesión: {exc}", flush=True)
         finally:
             self._sesion_clasificacion = None
             self._actualizar_totales_general()
+        return resumen
 
     def _reportar_prediccion(self, results, origen="[Clasificación][Usuario]"):
         if not results:
@@ -654,6 +662,13 @@ class InterfazView:
             except Exception as exc:
                 print(f"[Servo] Error al mandar comando: {exc}", flush=True)
 
+    def _mostrar_estado_accion(self, accion, pasos):
+        pasos_limpios = [p for p in (pasos or []) if p]
+        if not pasos_limpios:
+            return
+        mensaje = f"{accion}:\n" + "\n".join(f"- {p}" for p in pasos_limpios)
+        print(mensaje, flush=True)
+
 
     # =================== CÁMARA ===================
     def toggle_camara(self):
@@ -665,16 +680,20 @@ class InterfazView:
     def iniciar_camara(self):
         if self.capturando:
             return
+        estados = []
 
         if not self.model:
             messagebox.showerror(
                 "Modelo",
                 self.model_error
-                or "No se pudo cargar el modelo NutPickerModel.pt. Verifique la ruta del archivo.",
+                or f"No se pudo cargar el modelo {MODEL_PATH}. Verifique la ruta del archivo.",
             )
+            estados.append(f"No se pudo iniciar: {self.model_error or 'Modelo no disponible'}")
             self.restaurar_boton_start()
+            self._mostrar_estado_accion("START", estados)
             return
 
+        estados.append("Modelo cargado correctamente")
         print("[Cámara] Solicitando inicio de captura desde la interfaz.", flush=True)
         backend, error_message = self._select_camera_backend()
         if not backend:
@@ -682,19 +701,28 @@ class InterfazView:
                 "Cámara", error_message or "No se encontró un backend de cámara disponible."
             )
             print(f"[Cámara] No se pudo iniciar la cámara: {error_message}", flush=True)
+            estados.append(f"Backend de cámara no disponible: {error_message or 'No encontrado'}")
             self.restaurar_boton_start()
+            self._mostrar_estado_accion("START", estados)
             return
 
         self.camera_backend = backend
         self._primer_frame_recibido = False
         print(f"[Cámara] Backend seleccionado: {backend.__class__.__name__}", flush=True)
+        estados.append(f"Backend seleccionado: {backend.__class__.__name__}")
         if not self._iniciar_sesion_clasificacion():
             self.restaurar_boton_start()
+            estados.append("Sesión de clasificación no pudo iniciarse.")
+            self._mostrar_estado_accion("START", estados)
             return
+        if self._sesion_clasificacion:
+            estados.append(f"Sesión iniciada ID {self._sesion_clasificacion.classification_id}")
         self.capturando = True
         self.btn_start.config(text="DETENER", bg="red", fg="white")
         self.lbl_camara.config(text="Conectando...", image="")
         self.actualizar_frame()
+        estados.append("Captura en vivo iniciada.")
+        self._mostrar_estado_accion("START", estados)
 
     def actualizar_frame(self):
         if not self.camera_backend:
@@ -760,6 +788,7 @@ class InterfazView:
         self.camara_job = self.root.after(30, self.actualizar_frame)
 
     def detener_camara(self):
+        estados = []
         if self.camara_job:
             self.root.after_cancel(self.camara_job)
             self.camara_job = None
@@ -767,8 +796,11 @@ class InterfazView:
             try:
                 self.camera_backend.stop()
                 print("[Cámara] Backend detenido desde la interfaz.", flush=True)
+                estados.append("Backend de cámara detenido.")
             finally:
                 self.camera_backend = None
+        else:
+            estados.append("Backend de cámara no estaba activo.")
         self.capturando = False
         self._primer_frame_recibido = False
         self.lbl_camara.config(image="", text="Cámara detenida")
@@ -777,8 +809,29 @@ class InterfazView:
         self.fps_var.set("FPS: --.-")
         self._ultima_prediccion = None
         self._ultima_prediccion_ts = 0.0
-        self._cerrar_sesion_clasificacion()
+        resumen = self._cerrar_sesion_clasificacion()
         self.restaurar_boton_start()
+        estados.append("Captura detenida.")
+        if resumen:
+            if resumen.get("estado") == "sin_datos":
+                estados.append("Sesión sin detecciones, eliminada.")
+            elif resumen.get("estado") == "error":
+                estados.append(f"Sesión no cerrada correctamente: {resumen.get('error')}")
+            else:
+                estados.append(
+                    f"Sesión {resumen.get('classification_id')} finalizada con total {resumen.get('total', 0)}"
+                )
+                counts = resumen.get("counts", {})
+                estados.append(
+                    f"Conteos A:{counts.get('A',0)} B:{counts.get('B',0)} C:{counts.get('C',0)} D:{counts.get('D',0)}"
+                )
+                if resumen.get("n8n_notificado") is True:
+                    estados.append("Envío a n8n solicitado correctamente.")
+                elif resumen.get("n8n_notificado") is False:
+                    estados.append("Datos no pudieron enviarse a n8n.")
+        else:
+            estados.append("No había sesión activa.")
+        self._mostrar_estado_accion("Detener", estados)
 
     def restaurar_boton_start(self):
         if hasattr(self, "btn_start"):
@@ -796,9 +849,6 @@ class InterfazView:
         except tk.TclError:
             pass
         self.root.destroy()
-
-    def _mostrar_aviso_reporte(self):
-        messagebox.showinfo("Reporte", "Solicitud de envio de reporte solicitada")
 
     def _cargar_modelo(self):
         """Carga el modelo YOLO utilizado para la clasificación."""

@@ -1,7 +1,13 @@
+# Paths y modelos
+from pathlib import Path
+
+MODEL_PATH = Path(__file__).resolve().parents[1] / "models" / "DAO" / "NutPickerModelv1.pt"
+
 # Resolución de pantalla
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 480
 FULLSCREEN = True
+ENABLE_TWO_PROVIDERS_BUTTON = False  # Oculta temporalmente el botón "2 Proveedores"
 
 # Colores
 COL_FONDO = "#FBE9D0"

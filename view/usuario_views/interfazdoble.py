@@ -1,4 +1,3 @@
-from pathlib import Path
 import time
 import tkinter as tk
 from tkinter import messagebox
@@ -14,7 +13,7 @@ from components.utils import obtener_colores
 import components.config as app_config
 from models.DAO.proceso_lote_dao import ProcesoLoteDAO
 
-MODEL_PATH = Path(__file__).resolve().parents[2] / "models" / "DAO" / "NutPickerModel.pt"
+MODEL_PATH = app_config.MODEL_PATH
 PREVIEW_SIZE = (200, 200)
 COLORS = obtener_colores()
 
@@ -256,7 +255,7 @@ class InterfazViewDoble:
             messagebox.showerror(
                 "Modelo",
                 self.model_error
-                or "No se pudo cargar el modelo NutPickerModel.pt. Verifique la ruta del archivo.",
+                or f"No se pudo cargar el modelo {MODEL_PATH}. Verifique la ruta del archivo.",
             )
             self.restaurar_boton_start()
             return

@@ -4,12 +4,12 @@ import subprocess
 import time
 from pathlib import Path
 
+import components.config as app_config
 import pytest
 
 
-ROOT = Path(__file__).resolve().parents[1]
 OUTPUT_DIR = Path(__file__).parent / "outputs"
-MODEL_PATH = ROOT / "models" / "DAO" / "NutPickerModel.pt"
+MODEL_PATH = app_config.MODEL_PATH
 RUN_NAME = "EV_TU02_yolo_cli"
 CAPTURE_RAW = OUTPUT_DIR / "EV_TU02_capture_raw.jpg"
 CAPTURE_BGR = OUTPUT_DIR / "EV_TU02_capture_bgr.jpg"

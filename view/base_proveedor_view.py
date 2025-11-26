@@ -160,8 +160,10 @@ class BaseProveedorView:
         btn_sup = tk.Button(header_frame, text="2 Proveedores",
                             bg=self.colores["boton"], fg=self.colores["boton_texto"],
                             font=("Segoe UI", 9, "bold"),
-                            command=self.iniciar_proceso_dos_proveedores)
-        btn_sup.pack(side=tk.RIGHT, padx=5)
+                            command=self.iniciar_proceso_dos_proveedores,
+                            state=tk.NORMAL if app_config.ENABLE_TWO_PROVIDERS_BUTTON else tk.DISABLED)
+        if app_config.ENABLE_TWO_PROVIDERS_BUTTON:
+            btn_sup.pack(side=tk.RIGHT, padx=5)
 
         # Treeview
         cols = ("ID", "Nombre del Proveedor", "RUT", "Contacto")
